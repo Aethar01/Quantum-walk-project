@@ -1,6 +1,6 @@
 use rand::Rng;
 use rayon::prelude::*;
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 use std::io::Write;
 use anyhow::{Context, Result};
 
@@ -39,38 +39,38 @@ fn freq_array_of_arrest_steps(max_possible_step: usize, arrest_steps: Vec<usize>
     freq
 }
 
-fn run(args: Args) -> Result<f64> {
+pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output: Option<PathBuf>) -> Result<f64> {
 
     // Validate inputs
-    if args.j <= 0 {
+    if j <= 0 {
         return Err(anyhow::anyhow!("J must be positive"));
     }
-    if args.num_walkers <= 0 {
+    if num_walkers <= 0 {
         return Err(anyhow::anyhow!("num_walkers must be positive"));
     }
-    if args.max_steps <= 0 {
+    if max_steps <= 0 {
         return Err(anyhow::anyhow!("max_steps must be positive"));
     }
 
     // Set number of threads if specified
-    if args.threads > 0 {
+    if threads > 0 {
         rayon::ThreadPoolBuilder::new()
-            .num_threads(args.threads)
+            .num_threads(threads)
             .build_global()
             .context("Failed to build thread pool")?;
     }
 
     // Simulate all walkers in parallel
-    let arrest_steps: Vec<usize> = sim_walkers(args.num_walkers, args.max_steps, args.j);
+    let arrest_steps: Vec<usize> = sim_walkers(num_walkers, max_steps, j);
 
     // Build frequency array of arrest steps
-    let max_possible_step: usize = args.max_steps + 1;
+    let max_possible_step: usize = max_steps + 1;
     let freq: Vec<usize> = freq_array_of_arrest_steps(max_possible_step, arrest_steps);
 
     // Compute cumulative survival counts
-    let mut cum_sum = vec![0; args.max_steps + 1];
-    cum_sum[args.max_steps] = freq[args.max_steps + 1];
-    for n in (0..args.max_steps).rev() {
+    let mut cum_sum = vec![0; max_steps + 1];
+    cum_sum[max_steps] = freq[max_steps + 1];
+    for n in (0..max_steps).rev() {
         cum_sum[n] = cum_sum[n + 1] + freq[n + 1];
     }
 
@@ -81,7 +81,7 @@ fn run(args: Args) -> Result<f64> {
     let mut sum_x2 = 0.0;
     let mut n_points = 0;
 
-    for n in 0..=args.max_steps {
+    for n in 0..=max_steps {
         let k = cum_sum[n];
         if k == 0 {
             continue;
@@ -113,7 +113,7 @@ fn run(args: Args) -> Result<f64> {
     let lambda = -slope;
 
     // Compute lambda * J^2
-    let j_sq = (args.j as f64).powi(2);
+    let j_sq = (j as f64).powi(2);
     let lambda_j_sq = lambda * j_sq;
 
     // Theoretical value for comparison
@@ -127,10 +127,16 @@ fn run(args: Args) -> Result<f64> {
     );
 
     // Output survival data to file if specified
-    if let Some(output_path) = args.output {
+    write_output_file(output, cum_sum, max_steps)?;
+
+    Ok(lambda_j_sq)
+}
+
+fn write_output_file(output: Option<PathBuf>, cum_sum: Vec<usize>, max_steps: usize) -> Result<()> {
+    if let Some(output_path) = output {
         let mut file = File::create(output_path).context("Failed to create output file")?;
         writeln!(file, "n\tk(n)\tln_k(n)").context("Failed to write header")?;
-        for n in 0..=args.max_steps {
+        for n in 0..= max_steps {
             let k = cum_sum[n];
             if k > 0 {
                 writeln!(file, "{}\t{}\t{}", n, k, (k as f64).ln())
@@ -138,6 +144,5 @@ fn run(args: Args) -> Result<f64> {
             }
         }
     }
-
-    Ok(lambda_j_sq)
+    Ok(())
 }

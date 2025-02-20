@@ -1,17 +1,35 @@
 use clap::Parser;
-use rand::Rng;
-use rayon::prelude::*;
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
-use anyhow::{Context, Result};
 
-mod lib;
-mod structs;
+mod walk;
 
-fn main() {
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    /// Number of random walks to simulate
+    #[arg(short, long, default_value_t = 1000)]
+    num_walkers: usize,
+
+    /// Lattice size J (boundary at ±J)
+    #[arg(short, long, default_value_t = 8)]
+    j: i32,
+
+    /// Maximum number of steps per walk
+    #[arg(short('m'), long, default_value_t = 100)]
+    max_steps: usize,
+
+    /// Number of threads to use (0 for automatic)
+    #[arg(short, long, default_value_t = 0)]
+    threads: usize,
+
+    /// Output file for survival data (optional)
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+}
+
+fn main() { 
     let args = Args::parse();
-    if let Err(e) = run(args) {
+    if let Err(e) = walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output) {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
