@@ -1,4 +1,5 @@
-use rand::Rng;
+use rand::{Rng, SeedableRng};
+use rand_pcg::Pcg64;
 use rayon::prelude::*;
 use std::{fs::File, path::PathBuf};
 use std::io::Write;
@@ -29,6 +30,29 @@ fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<usize> {
         .collect()
 }
 
+/// NOT MULTITHREADED
+fn sim_walkers_seeded(num_walkers: usize, max_steps: usize, j: i32, seed: u64) -> Vec<usize> {
+    let mut rng = Pcg64::seed_from_u64(seed);
+    (0..num_walkers)
+        .map(|_| {
+            let mut position = 0i32;
+            let mut arrest_step = None;
+            for step in 1..= max_steps {
+                // Move left or right
+                let step_dir: i32 = if rng.random_bool(0.5) { 1 } else { -1 };
+                position += step_dir;
+
+                // Check if arrested
+                if position.abs() > j {
+                    arrest_step = Some(step);
+                    break;
+                }
+            }
+            arrest_step.unwrap_or(max_steps + 1)
+        })
+        .collect()
+}
+
 fn freq_array_of_arrest_steps(max_possible_step: usize, arrest_steps: Vec<usize>) -> Vec<usize> {
     let mut freq = vec![0; max_possible_step + 1];
     for &step in &arrest_steps {
@@ -39,7 +63,8 @@ fn freq_array_of_arrest_steps(max_possible_step: usize, arrest_steps: Vec<usize>
     freq
 }
 
-pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output: Option<PathBuf>) -> Result<f64> {
+/// Returns (j_sq, lambda_j_sq, residual)
+pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output: Option<PathBuf>, seed: u64) -> Result<(f64, f64, f64)> {
 
     // Validate inputs
     if j <= 0 {
@@ -60,8 +85,13 @@ pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output:
             .context("Failed to build thread pool")?;
     }
 
-    // Simulate all walkers in parallel
-    let arrest_steps: Vec<usize> = sim_walkers(num_walkers, max_steps, j);
+    let arrest_steps: Vec<usize> = {
+        if seed == 0 {
+            sim_walkers(num_walkers, max_steps, j)
+        } else {
+            sim_walkers_seeded(num_walkers, max_steps, j, seed)
+        }
+    };
 
     // Build frequency array of arrest steps
     let max_possible_step: usize = max_steps + 1;
@@ -118,18 +148,13 @@ pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output:
 
     // Theoretical value for comparison
     let theoretical = std::f64::consts::PI.powi(2) / 8.0;
+    let residual = (lambda_j_sq - theoretical).abs() / theoretical * 100.0;
 
-    println!("Computed λJ²: {:.4}", lambda_j_sq);
-    println!("Theoretical π²/8: {:.4}", theoretical);
-    println!(
-        "Residual: {:.2}%",
-        (lambda_j_sq - theoretical).abs() / theoretical * 100.0
-    );
 
     // Output survival data to file if specified
     write_output_file(output, cum_sum, max_steps)?;
 
-    Ok(lambda_j_sq)
+    Ok((j_sq, lambda_j_sq, residual))
 }
 
 fn write_output_file(output: Option<PathBuf>, cum_sum: Vec<usize>, max_steps: usize) -> Result<()> {
@@ -145,4 +170,22 @@ fn write_output_file(output: Option<PathBuf>, cum_sum: Vec<usize>, max_steps: us
         }
     }
     Ok(())
+}
+
+mod test {
+    #[test]
+    fn test_sim_walkers() {
+        let num_walkers = 1000;
+        let max_steps = 1000;
+        let j = 8;
+        let (_, lambda_j_sq, residual) = super::run(j, num_walkers, max_steps, 0, None, 0).unwrap();
+        let theoretical = std::f64::consts::PI.powi(2) / 8.0;
+
+        println!("Computed λJ²: {:.4}", lambda_j_sq);
+        println!("Theoretical π²/8: {:.4}", theoretical);
+        println!(
+            "Residual: {:.2}%",
+            residual
+        );
+    }
 }

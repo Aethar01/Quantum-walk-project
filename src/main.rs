@@ -25,11 +25,16 @@ pub struct Args {
     /// Output file for survival data (optional)
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Seed for random number generators
+    /// If 0 or unspecified, a random seed is used
+    #[arg(short, long, default_value_t = 0)]
+    seed: u64,
 }
 
 fn main() { 
     let args = Args::parse();
-    if let Err(e) = walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output) {
+    if let Err(e) = walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output, args.seed) {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
