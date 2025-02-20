@@ -149,7 +149,7 @@ fn main() -> Result<()> {
     println!("Computed λJ²: {:.4}", lambda_j_sq);
     println!("Theoretical π²/8: {:.4}", theoretical);
     println!(
-        "Difference: {:.2}%",
+        "Residual: {:.2}%",
         (lambda_j_sq - theoretical).abs() / theoretical * 100.0
     );
 
