@@ -34,8 +34,7 @@ def parse_arguments():
     parser.add_argument('-t', '--threads', type=int, default=0,
                         help='Number of threads to use. If 0, use all available threads (default=0)')
 
-    parser.add_argument('-o', '--output', type=str, default='results.csv',
-                        help='Output file name (default=results.csv)')
+    parser.add_argument('-o', '--output', type=str, help='Output file name')
 
     parser.add_argument('-r', '--runs', type=int, default=1,
                         help='Number of times to run the simulation (default=1)')
@@ -74,7 +73,8 @@ def main():
         for r in result:
             df = append_data_frame(df, r)
 
-    # df.to_csv(f'{args.output}', index=False)
+    if args.output:
+        df.to_csv(f'{args.output}', index=False)
 
     # plot to see what values yield the lowest residuals
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
