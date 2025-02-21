@@ -77,12 +77,12 @@ pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output:
         return Err(anyhow::anyhow!("max_steps must be positive"));
     }
 
-    // Set number of threads if specified
+    // Set number of threads
     if threads > 0 {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(threads)
-            .build_global()
-            .context("Failed to build thread pool")?;
+        match rayon::ThreadPoolBuilder::new().num_threads(threads).build_global() {
+            Ok(_) => (),
+            Err(_) => (),
+        }
     }
 
     let arrest_steps: Vec<usize> = {
@@ -170,22 +170,4 @@ fn write_output_file(output: Option<PathBuf>, cum_sum: Vec<usize>, max_steps: us
         }
     }
     Ok(())
-}
-
-mod test {
-    #[test]
-    fn test_sim_walkers() {
-        let num_walkers = 1000;
-        let max_steps = 1000;
-        let j = 8;
-        let (_, lambda_j_sq, residual) = super::run(j, num_walkers, max_steps, 0, None, 0).unwrap();
-        let theoretical = std::f64::consts::PI.powi(2) / 8.0;
-
-        println!("Computed λJ²: {:.4}", lambda_j_sq);
-        println!("Theoretical π²/8: {:.4}", theoretical);
-        println!(
-            "Residual: {:.2}%",
-            residual
-        );
-    }
 }

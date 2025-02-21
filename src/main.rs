@@ -39,3 +39,21 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+mod test {
+    #[test]
+    fn test_sim_walkers() {
+        let num_walkers = 1000;
+        let max_steps = 1000;
+        let j = 8;
+        let (_, lambda_j_sq, residual) = super::walk::run(j, num_walkers, max_steps, 0, None, 0).unwrap();
+        let theoretical = std::f64::consts::PI.powi(2) / 8.0;
+
+        println!("Computed λJ²: {:.4}", lambda_j_sq);
+        println!("Theoretical π²/8: {:.4}", theoretical);
+        println!(
+            "Residual: {:.2}%",
+            residual
+        );
+    }
+}
