@@ -15,8 +15,8 @@ def parse_arguments():
     parser.add_argument('-ns', '--num_walkers_step', type=int,
                         default=100, help='Step size for number of random walks (default=100)')
 
-    parser.add_argument('-ju', '--j_upper', type=int, default=16,
-                        help='Maximum lattice size J (boundary at ±J) (Inclusive, default=16)')
+    parser.add_argument('-ju', '--j_upper', type=int, default=20,
+                        help='Maximum lattice size J (boundary at ±J) (Inclusive, default=20)')
     parser.add_argument('-jl', '--j_lower', type=int, default=8,
                         help='Minimum lattice size J (boundary at ±J) (Inclusive, default=8)')
     parser.add_argument('-js', '--j_step', type=int,
@@ -62,14 +62,18 @@ def append_data_frame(df: pd.DataFrame, result: qwp.Result) -> pd.DataFrame:
 
 def auto_analyse(args, df, theoretical):
     # find values that yield the lowest residual
-    best = df[df['residual'] == df['residual'].min()]
-    for i, row in best.iterrows():
-        print(f'J: {row["j"]}')
-        print(f'Number of Walkers: {row["num_walkers"]}')
-        print(f'Max Steps: {row["max_steps"]}')
-        print(f'Residual: {row["residual"]}')
-        print(f'Lambda * J^2: {row["lambda_j_sq"]}')
-        print(f'Theoretical: {theoretical}')
+    best = df[df['residual'] >= 1e-10]
+    # for i, row in best.iterrows():
+    #     print(f'J: {row["j"]}')
+    #     print(f'Number of Walkers: {row["num_walkers"]}')
+    #     print(f'Max Steps: {row["max_steps"]}')
+    #     print(f'Residual: {row["residual"]}')
+    #     print(f'Lambda * J^2: {row["lambda_j_sq"]}')
+    #     print(f'Theoretical: {theoretical}')
+    average = best['lambda_j_sq'].mean()
+    print(f'Average λJ^2: {average}')
+    print(f'Theoretical: {theoretical}')
+
 
 
 def main():

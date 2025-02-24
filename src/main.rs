@@ -11,11 +11,11 @@ pub struct Args {
     num_walkers: usize,
 
     /// Lattice size J (boundary at ±J)
-    #[arg(short, long, default_value_t = 8)]
+    #[arg(short, long, default_value_t = 17)]
     j: i32,
 
     /// Maximum number of steps per walk
-    #[arg(short('m'), long, default_value_t = 100)]
+    #[arg(short('m'), long, default_value_t = 1000)]
     max_steps: usize,
 
     /// Number of threads to use (0 for automatic)
@@ -34,26 +34,15 @@ pub struct Args {
 
 fn main() { 
     let args = Args::parse();
-    if let Err(e) = walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output, args.seed) {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
-}
-
-mod test {
-    #[test]
-    fn test_sim_walkers() {
-        let num_walkers = 1000;
-        let max_steps = 1000;
-        let j = 8;
-        let (_, lambda_j_sq, residual) = super::walk::run(j, num_walkers, max_steps, 0, None, 0).unwrap();
-        let theoretical = std::f64::consts::PI.powi(2) / 8.0;
-
-        println!("Computed λJ²: {:.4}", lambda_j_sq);
-        println!("Theoretical π²/8: {:.4}", theoretical);
-        println!(
-            "Residual: {:.2}%",
-            residual
-        );
+    match walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output, args.seed) {
+        Ok((_, lambda_j_sq, residual)) => {
+            println!("Computed λJ²: {:.4}", lambda_j_sq);
+            println!("Theoretical π²/8: {:.4}", std::f64::consts::PI.powi(2) / 8.0);
+            println!("Residual: {:.2}%", residual);
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
     }
 }
