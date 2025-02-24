@@ -39,6 +39,9 @@ def parse_arguments():
     parser.add_argument('-r', '--runs', type=int, default=1,
                         help='Number of times to run the simulation (default=1)')
 
+    parser.add_argument('-a', '--analyse', action='store_true',
+                        help='Narrow down paramenters automatically')
+
     return parser.parse_args()
 
 
@@ -57,6 +60,18 @@ def append_data_frame(df: pd.DataFrame, result: qwp.Result) -> pd.DataFrame:
     }])], ignore_index=True)
 
 
+def auto_analyse(args, df, theoretical):
+    # find values that yield the lowest residual
+    best = df[df['residual'] == df['residual'].min()]
+    for i, row in best.iterrows():
+        print(f'J: {row["j"]}')
+        print(f'Number of Walkers: {row["num_walkers"]}')
+        print(f'Max Steps: {row["max_steps"]}')
+        print(f'Residual: {row["residual"]}')
+        print(f'Lambda * J^2: {row["lambda_j_sq"]}')
+        print(f'Theoretical: {theoretical}')
+
+
 def main():
     args = parse_arguments()
 
@@ -72,6 +87,10 @@ def main():
         )
         for r in result:
             df = append_data_frame(df, r)
+
+    if args.analyse:
+        auto_analyse(args, df, theoretical)
+        return
 
     if args.output:
         df.to_csv(f'{args.output}', index=False)

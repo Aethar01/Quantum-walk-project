@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use std::{fs::File, path::PathBuf};
 use std::io::Write;
 use anyhow::{Context, Result};
+use linreg::linear_regression;
 
 fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<usize> {
     (0..num_walkers)
@@ -105,11 +106,13 @@ pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output:
     }
 
     // Collect data points for linear regression
-    let mut sum_x = 0.0;
-    let mut sum_y = 0.0;
-    let mut sum_xy = 0.0;
-    let mut sum_x2 = 0.0;
-    let mut n_points = 0;
+    // let mut sum_x = 0.0;
+    // let mut sum_y = 0.0;
+    // let mut sum_xy = 0.0;
+    // let mut sum_x2 = 0.0;
+    // let mut n_points = 0;
+    let mut xcol: Vec<f64> = Vec::new();
+    let mut ycol: Vec<f64> = Vec::new();
 
     for n in 0..=max_steps {
         let k = cum_sum[n];
@@ -118,28 +121,31 @@ pub fn run(j: i32, num_walkers: usize, max_steps: usize, threads: usize, output:
         }
         let y = (k as f64).ln();
         let x = n as f64;
-        sum_x += x;
-        sum_y += y;
-        sum_xy += x * y;
-        sum_x2 += x * x;
-        n_points += 1;
+        ycol.push(y);
+        xcol.push(x);
+        // sum_x += x;
+        // sum_y += y;
+        // sum_xy += x * y;
+        // sum_x2 += x * x;
+        // n_points += 1;
     }
 
-    // Check if we have enough data points for regression
-    if n_points < 2 {
-        return Err(anyhow::anyhow!(
-            "Insufficient data points (n_points={}) for regression", n_points
-        ));
-    }
+//     // Check if we have enough data points for regression
+//     if n_points < 2 {
+//         return Err(anyhow::anyhow!(
+//             "Insufficient data points (n_points={}) for regression", n_points
+//         ));
+//     }
 
-    // Compute slope (lambda) and intercept
-    let denominator = (n_points as f64) * sum_x2 - sum_x * sum_x;
-    if denominator == 0.0 {
-        return Err(anyhow::anyhow!(
-            "Regression denominator is zero; insufficient data variation"
-        ));
-    }
-    let slope = ((n_points as f64) * sum_xy - sum_x * sum_y) / denominator;
+//     // Compute slope (lambda) and intercept
+//     let denominator = (n_points as f64) * sum_x2 - sum_x * sum_x;
+//     if denominator == 0.0 {
+//         return Err(anyhow::anyhow!(
+//             "Regression denominator is zero; insufficient data variation"
+//         ));
+//     }
+    let (slope, _): (f64, _) = linear_regression(xcol.as_slice(), ycol.as_slice()).unwrap();
+    // let slope = ((n_points as f64) * sum_xy - sum_x * sum_y) / denominator;
     let lambda = -slope;
 
     // Compute lambda * J^2
