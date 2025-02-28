@@ -73,8 +73,8 @@ def auto_analyse(args, df, theoretical):
     # average = best['lambda_j_sq'].mean()
     print(f'Average λJ^2: {average}')
     print(f'Theoretical: {theoretical}')
-    print(f'Residual: {abs(average - theoretical) / theoretical * 100}%')
-
+    print(f'Residual: {
+          round(abs(average - theoretical) / theoretical * 100, 4)}%')
 
 
 def main():
@@ -127,7 +127,7 @@ def main():
     # histogram lambda_j_sq and theoretical value
     fig, ax = plt.subplots()
     ax.hist(df['lambda_j_sq'], bins=50, alpha=0.5, label='Simulated')
-    ax.axvline(x=theoretical, color='r', label='Theoretical')
+    ax.axvline(x=theoretical, color='r', label='Theoretical: $π^2/8$')
     ax.set_xlabel('$λJ^2$')
     ax.set_ylabel('Frequency')
     ax.grid()
