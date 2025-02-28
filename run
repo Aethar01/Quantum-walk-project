@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+
+#args for separate build and run
+#-b for build
+#-r for run
+args() {
+
+    local options="hbrc"
+    local longoptions="help,build,run,clean"
+    local parsed_args
+    parsed_args=$(getopt -o $options --long $longoptions -n "$(basename "$0")" -- "$@")
+
+
+    eval set -- "$parsed_args"
+    while true; do
+        case $1 in
+            -h | --help)
+                usage
+                exit 0
+                ;;
+            -b | --build)
+                BUILD=true
+                ;;
+            -r | --run)
+                RUN=true
+                ;;
+            -c | --clean)
+                CLEAN=true
+                ;;
+            --)
+                shift
+                # add all remaining arguments to array of arguments
+                for arg; do
+                    OPT_ARRAY+=("$arg")
+                done
+                break
+                ;;
+            *)
+                usage
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
+usage() {
+    cat <<EOF 
+    Usage: run [OPTIONS] -- [ARGS]
+
+    Options:
+    -h, --help              Show this help message and exit
+    -b, --build             Build the project
+    -r, --run               Run the project
+    -c, --clean             Clean .venv and target directories
+    --                      Pass additional arguments to the project
+EOF
+}
+
+check_python() {
+    if ! command -v python3 &> /dev/null
+    then
+        echo "Python3 is not installed. Please install python3."
+        exit 1
+    fi
+}
+
+check_venv() {
+    if ! command -v python3 -m venv &> /dev/null
+    then
+        echo "Python3 venv is not installed. Please install python3-venv."
+        exit 1
+    fi
+}
+
+build() {
+    #check if venv exists
+    if [ ! -d ".venv" ]; then
+        echo "Creating virtual environment"
+        python3 -m venv .venv
+    fi
+
+    #activate venv
+    source .venv/bin/activate
+
+    #check if maturin is installed
+    if ! command -v maturin &> /dev/null
+    then
+        echo "Installing maturin"
+        pip install maturin
+    fi
+
+    #check if argparse is installed 
+    if ! python -c "import argparse" &> /dev/null
+    then
+        echo "Installing argparse"
+        pip install argparse
+    fi
+
+    #check if pandas is installed
+    if ! python -c "import pandas" &> /dev/null
+    then
+        echo "Installing pandas"
+        pip install pandas
+    fi
+
+    #check if matplotlib is installed
+    if ! python -c "import matplotlib" &> /dev/null
+    then
+        echo "Installing matplotlib"
+        pip install matplotlib
+    fi
+
+    #build the project
+    maturin build --release
+
+    #install the wheel
+    pip install --force-reinstall target/wheels/*.whl
+
+    #deactivate venv
+    deactivate
+}
+
+run() {
+    #check if venv exists
+    if [ ! -d ".venv" ]; then
+        echo "No virtual environment found. Please build the project first."
+        exit 1
+    fi
+
+    #activate venv
+    source .venv/bin/activate
+
+    #run the project
+    ./qrw "${OPT_ARRAY[@]}"
+
+    #deactivate venv
+    deactivate
+}
+
+clean() {
+    #remove build files
+    rm -rf target
+    rm -rf .venv
+}
+
+main() {
+    #parse arguments
+    args "$@"
+
+    #check if build flag is set
+    if [ "$BUILD" = true ]; then
+        build
+    fi
+
+    #check if run flag is set
+    if [ "$RUN" = true ]; then
+        run
+    fi
+
+    #check if clean flag is set
+    if [ "$CLEAN" = true ]; then
+        clean
+    fi
+}
+
+#array to store additional arguments
+OPT_ARRAY=()
+
+#flags for build and run
+BUILD=false
+RUN=false
+
+#check if python3 is installed
+check_python
+check_venv
+main "$@"
