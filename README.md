@@ -37,7 +37,7 @@ or
 
 The options are:
 
-```bash
+```
 usage: quantum-walk-project [-h] [-nu NUM_WALKERS_UPPER] [-nl NUM_WALKERS_LOWER] [-ns NUM_WALKERS_STEP] [-ju J_UPPER] [-jl J_LOWER] [-js J_STEP] [-mu MAX_STEPS_UPPER]
                             [-ml MAX_STEPS_LOWER] [-ms MAX_STEPS_STEP] [-s SEED] [-t THREADS] [-o OUTPUT] [-r RUNS] [-a]
 
