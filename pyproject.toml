@@ -4,14 +4,29 @@ build-backend = "maturin"
 
 [project]
 name = "Quantum-walk-project"
+description = "A project to simulate quantum walks"
+readme = "README.md"
+authors = [
+    {name = "Elliott Ashby", email = "ea1g21@soton.ac.uk"}
+]
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+dependencies = [
+    "pandas",
+    "argparse",
+    "matplotlib",
+    "pygobject ; platform_system == 'Linux'",
+]
 dynamic = ["version"]
+
 [tool.maturin]
 python-source = "python"
 module-name = "quantum_walk_project"
 features = ["pyo3/extension-module"]
+
+[project.scripts]
+quantum-walk-project = "quantum_walk_project.main:main"

@@ -57,6 +57,11 @@ usage() {
 EOF
 }
 
+error() {
+    echo "$1" 1>&2
+    exit 1
+}
+
 check_python() {
     if ! command -v python3 &> /dev/null
     then
@@ -83,39 +88,8 @@ build() {
     #activate venv
     source .venv/bin/activate
 
-    #check if maturin is installed
-    if ! command -v maturin &> /dev/null
-    then
-        echo "Installing maturin"
-        pip install maturin
-    fi
-
-    #check if argparse is installed 
-    if ! python -c "import argparse" &> /dev/null
-    then
-        echo "Installing argparse"
-        pip install argparse
-    fi
-
-    #check if pandas is installed
-    if ! python -c "import pandas" &> /dev/null
-    then
-        echo "Installing pandas"
-        pip install pandas
-    fi
-
-    #check if matplotlib is installed
-    if ! python -c "import matplotlib" &> /dev/null
-    then
-        echo "Installing matplotlib"
-        pip install matplotlib
-    fi
-
-    #build the project
-    maturin build --release
-
-    #install the wheel
-    pip install --force-reinstall target/wheels/*.whl
+    #install package
+    pip install --upgrade .
 
     #deactivate venv
     deactivate
@@ -124,15 +98,17 @@ build() {
 run() {
     #check if venv exists
     if [ ! -d ".venv" ]; then
-        echo "No virtual environment found. Please build the project first."
-        exit 1
+        error "Virtual environment does not exist. Please build the project first."
     fi
 
     #activate venv
     source .venv/bin/activate
 
-    #run the project
-    ./qrw "${OPT_ARRAY[@]}"
+    # check if the project is installed 
+    if ! command -v quantum-walk-project &> /dev/null; then
+        error "Quantum walk project is not installed. Please build the project first."
+    fi
+    quantum-walk-project "${OPT_ARRAY[@]}"
 
     #deactivate venv
     deactivate
