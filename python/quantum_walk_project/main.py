@@ -9,7 +9,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-nu', '--num_walkers_upper', type=int,
-                        default=10000, help='Maximum number of random walks to simulate (Inclusive, default=10000)')
+                        default=1000, help='Maximum number of random walks to simulate (Inclusive, default=1000)')
     parser.add_argument('-nl', '--num_walkers_lower', type=int,
                         default=100, help='Minimum number of random walks to simulate (Inclusive, default=100)')
     parser.add_argument('-ns', '--num_walkers_step', type=int,
@@ -23,7 +23,7 @@ def parse_arguments():
                         default=2, help='Step size for lattice size (default=2)')
 
     parser.add_argument('-mu', '--max_steps_upper', type=int,
-                        default=10000, help='Maximum number of steps per walk (Inclusive, default=10000)')
+                        default=1000, help='Maximum number of steps per walk (Inclusive, default=1000)')
     parser.add_argument('-ml', '--max_steps_lower', type=int,
                         default=100, help='Minimum number of steps per walk (Inclusive, default=100)')
     parser.add_argument('-ms', '--max_steps_step', type=int,
