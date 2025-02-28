@@ -32,6 +32,7 @@ run *ARGS: build
     {{venv_dir}}/bin/quantum-walk-project {{ARGS}}
 
 # Clean build files and virtual environment
+[no-quiet]
 clean:
     rm -rf target
     rm -rf {{venv_dir}}
