@@ -25,7 +25,7 @@ dynamic = ["version"]
 
 [tool.maturin]
 python-source = "python"
-module-name = "quantum_walk_project"
+module-name = "quantum_walk_project.walkers"
 features = ["pyo3/extension-module"]
 
 [project.scripts]

@@ -1,5 +1,5 @@
 import argparse
-import quantum_walk_project.quantum_walk_project as qwp
+import quantum_walk_project.walkers as qwp
 import pandas as pd
 import matplotlib.pyplot as plt
 import math
@@ -9,7 +9,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-nu', '--num_walkers_upper', type=int,
-                        default=1000, help='Maximum number of random walks to simulate (Inclusive, default=1000)')
+                        default=10000, help='Maximum number of random walks to simulate (Inclusive, default=10000)')
     parser.add_argument('-nl', '--num_walkers_lower', type=int,
                         default=100, help='Minimum number of random walks to simulate (Inclusive, default=100)')
     parser.add_argument('-ns', '--num_walkers_step', type=int,
@@ -17,13 +17,13 @@ def parse_arguments():
 
     parser.add_argument('-ju', '--j_upper', type=int, default=20,
                         help='Maximum lattice size J (boundary at ±J) (Inclusive, default=20)')
-    parser.add_argument('-jl', '--j_lower', type=int, default=8,
-                        help='Minimum lattice size J (boundary at ±J) (Inclusive, default=8)')
+    parser.add_argument('-jl', '--j_lower', type=int, default=6,
+                        help='Minimum lattice size J (boundary at ±J) (Inclusive, default=6)')
     parser.add_argument('-js', '--j_step', type=int,
                         default=2, help='Step size for lattice size (default=2)')
 
     parser.add_argument('-mu', '--max_steps_upper', type=int,
-                        default=1000, help='Maximum number of steps per walk (Inclusive, default=1000)')
+                        default=10000, help='Maximum number of steps per walk (Inclusive, default=10000)')
     parser.add_argument('-ml', '--max_steps_lower', type=int,
                         default=100, help='Minimum number of steps per walk (Inclusive, default=100)')
     parser.add_argument('-ms', '--max_steps_step', type=int,
@@ -61,8 +61,8 @@ def append_data_frame(df: pd.DataFrame, result: qwp.Result) -> pd.DataFrame:
 
 
 def auto_analyse(args, df, theoretical):
-    # find values that yield the lowest residual
-    best = df[df['residual'] >= 1e-10]
+    # best = df[df['residual'] < 2]
+    average = df['lambda_j_sq'].mean()
     # for i, row in best.iterrows():
     #     print(f'J: {row["j"]}')
     #     print(f'Number of Walkers: {row["num_walkers"]}')
@@ -70,9 +70,10 @@ def auto_analyse(args, df, theoretical):
     #     print(f'Residual: {row["residual"]}')
     #     print(f'Lambda * J^2: {row["lambda_j_sq"]}')
     #     print(f'Theoretical: {theoretical}')
-    average = best['lambda_j_sq'].mean()
+    # average = best['lambda_j_sq'].mean()
     print(f'Average λJ^2: {average}')
     print(f'Theoretical: {theoretical}')
+    print(f'Residual: {abs(average - theoretical) / theoretical * 100}%')
 
 
 
@@ -103,22 +104,22 @@ def main():
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     ax[0, 0].scatter(df['j'], df['residual'])
     ax[0, 0].set_xlabel('J')
-    ax[0, 0].set_ylabel('Residual')
+    ax[0, 0].set_ylabel('Residual [%]')
     ax[0, 0].grid()
 
     ax[0, 1].scatter(df['num_walkers'], df['residual'])
     ax[0, 1].set_xlabel('Number of Walkers')
-    ax[0, 1].set_ylabel('Residual')
+    ax[0, 1].set_ylabel('Residual [%]')
     ax[0, 1].grid()
 
     ax[1, 0].scatter(df['max_steps'], df['residual'])
     ax[1, 0].set_xlabel('Max Steps')
-    ax[1, 0].set_ylabel('Residual')
+    ax[1, 0].set_ylabel('Residual [%]')
     ax[1, 0].grid()
 
     ax[1, 1].scatter(df['j_sq'], df['residual'])
     ax[1, 1].set_xlabel('$J^2$')
-    ax[1, 1].set_ylabel('Residual')
+    ax[1, 1].set_ylabel('Residual [%]')
     ax[1, 1].grid()
 
     plt.show()

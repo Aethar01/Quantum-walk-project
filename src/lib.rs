@@ -97,6 +97,7 @@ fn run_many_run_walk(
 }
 
 #[pymodule]
+#[pyo3(name = "walkers")]
 fn quantum_walk_project(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_walk, m)?)?;
     m.add_function(wrap_pyfunction!(run_many_run_walk, m)?)?;

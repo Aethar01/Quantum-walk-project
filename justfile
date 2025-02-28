@@ -25,7 +25,7 @@ build: make_venv
 
 # Rebuild the project
 rebuild: make_venv
-    {{pip}} install --upgrade --force-reinstall .
+    {{pip}} install --upgrade .
 
 # Run the project
 run *ARGS: build
