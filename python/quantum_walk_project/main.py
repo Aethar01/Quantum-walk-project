@@ -61,65 +61,34 @@ def append_data_frame(df: pd.DataFrame, result: qwp.Result) -> pd.DataFrame:
 
 
 def auto_analyse(args, df, theoretical):
-    # best = df[df['residual'] < 2]
-    average = df['lambda_j_sq'].mean()
-    # for i, row in best.iterrows():
-    #     print(f'J: {row["j"]}')
-    #     print(f'Number of Walkers: {row["num_walkers"]}')
-    #     print(f'Max Steps: {row["max_steps"]}')
-    #     print(f'Residual: {row["residual"]}')
-    #     print(f'Lambda * J^2: {row["lambda_j_sq"]}')
-    #     print(f'Theoretical: {theoretical}')
-    # average = best['lambda_j_sq'].mean()
-    print(f'Average λJ^2: {average}')
-    print(f'Theoretical: {theoretical}')
-    print(f'Residual: {
-          round(abs(average - theoretical) / theoretical * 100, 4)}%')
+    # find the best parameters
+    min_residual = df['residual'].min()
+    best = df[df['residual'] == min_residual]
+    print(f'Best Parameters: \n{best}')
+    return best
 
 
-def main():
-    args = parse_arguments()
-
-    theoretical = (math.pi ** 2) / 8
-
-    df = init_data_frame()
-    for _ in range(args.runs):
-        result = qwp.run_many_run_walk(
-            args.j_lower, args.j_step, args.j_upper,
-            args.num_walkers_lower, args.num_walkers_step, args.num_walkers_upper,
-            args.max_steps_lower, args.max_steps_step, args.max_steps_upper,
-            threads=args.threads, seed=args.seed
-        )
-        for r in result:
-            df = append_data_frame(df, r)
-
-    if args.analyse:
-        auto_analyse(args, df, theoretical)
-        return
-
-    if args.output:
-        df.to_csv(f'{args.output}', index=False)
-
+def plot_results(df: pd.DataFrame, theoretical: float):
     # plot to see what values yield the lowest residuals
     fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     ax[0, 0].scatter(df['j'], df['residual'])
     ax[0, 0].set_xlabel('J')
-    ax[0, 0].set_ylabel('Residual [%]')
+    ax[0, 0].set_ylabel('Residual')
     ax[0, 0].grid()
 
     ax[0, 1].scatter(df['num_walkers'], df['residual'])
     ax[0, 1].set_xlabel('Number of Walkers')
-    ax[0, 1].set_ylabel('Residual [%]')
+    ax[0, 1].set_ylabel('Residual')
     ax[0, 1].grid()
 
     ax[1, 0].scatter(df['max_steps'], df['residual'])
     ax[1, 0].set_xlabel('Max Steps')
-    ax[1, 0].set_ylabel('Residual [%]')
+    ax[1, 0].set_ylabel('Residual')
     ax[1, 0].grid()
 
     ax[1, 1].scatter(df['j_sq'], df['residual'])
     ax[1, 1].set_xlabel('$J^2$')
-    ax[1, 1].set_ylabel('Residual [%]')
+    ax[1, 1].set_ylabel('Residual')
     ax[1, 1].grid()
 
     plt.show()
@@ -133,3 +102,47 @@ def main():
     ax.grid()
     ax.legend()
     plt.show()
+
+
+def generate_data_frame(args):
+    df = init_data_frame()
+    for _ in range(args.runs):
+        result = qwp.run_many_run_walk(
+            args.j_lower, args.j_step, args.j_upper,
+            args.num_walkers_lower, args.num_walkers_step, args.num_walkers_upper,
+            args.max_steps_lower, args.max_steps_step, args.max_steps_upper,
+            threads=args.threads, seed=args.seed
+        )
+        for r in result:
+            df = append_data_frame(df, r)
+    return df
+
+
+def main():
+    args = parse_arguments()
+
+    theoretical = (math.pi ** 2) / 8
+
+    df = generate_data_frame(args)
+
+    if args.analyse:
+        af = auto_analyse(args, df, theoretical)
+        args.j_lower = af['j'].values[0]
+        args.j_upper = af['j'].values[0]
+        args.num_walkers_lower = af['num_walkers'].values[0]
+        args.num_walkers_upper = af['num_walkers'].values[0]
+        args.max_steps_lower = af['max_steps'].values[0]
+        args.max_steps_upper = af['max_steps'].values[0]
+        args.runs = 100
+        df = generate_data_frame(args)
+
+    if args.output:
+        df.to_csv(f'{args.output}', index=False)
+
+    plot_results(df, theoretical)
+
+    average_lambda_j_sq = df['lambda_j_sq'].mean()
+    print('Theoretical Value (π^2/8):', round(theoretical, 4))
+    print('Average λJ^2:', round(average_lambda_j_sq, 4))
+    print('Residual of Average λJ^2:', round(abs(
+        theoretical - average_lambda_j_sq), 4))

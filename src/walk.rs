@@ -137,7 +137,7 @@ pub fn run(
 
     // Theoretical value for comparison
     let theoretical = std::f64::consts::PI.powi(2) / 8.0;
-    let residual = (lambda_j_sq - theoretical).abs() / theoretical * 100.0;
+    let residual = (lambda_j_sq - theoretical).abs();
 
     // Output survival data to file if specified
     write_output_file(output, cum_sum, max_steps)?;
