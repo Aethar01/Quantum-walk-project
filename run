@@ -89,7 +89,7 @@ build() {
     source .venv/bin/activate
 
     #install package
-    pip install --upgrade .
+    pip install --upgrade . -v
 
     #deactivate venv
     deactivate

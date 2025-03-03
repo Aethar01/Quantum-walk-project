@@ -21,11 +21,11 @@ make_venv:
 
 # Build the project
 build: make_venv
-    [ -f {{venv_dir}}/bin/quantum-walk-project ] || {{pip}} install .
+    [ -f {{venv_dir}}/bin/quantum-walk-project ] || {{pip}} install . -v
 
 # Rebuild the project
 rebuild: make_venv
-    {{pip}} install --upgrade .
+    {{pip}} install --upgrade . -v
 
 # Run the project
 run *ARGS: build
