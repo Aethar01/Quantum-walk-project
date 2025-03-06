@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 mod walk;
+mod walkv2;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -33,16 +34,18 @@ pub struct Args {
 }
 
 fn main() { 
-    let args = Args::parse();
-    match walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output, args.seed) {
-        Ok((_, lambda_j_sq, residual)) => {
-            println!("Computed λJ²: {:.4}", lambda_j_sq);
-            println!("Theoretical π²/8: {:.4}", std::f64::consts::PI.powi(2) / 8.0);
-            println!("Residual: {:.2}%", residual);
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
-        }
-    }
+    // let args = Args::parse();
+    // match walk::run(args.j, args.num_walkers, args.max_steps, args.threads, args.output, args.seed) {
+    //     Ok((_, lambda_j_sq, residual)) => {
+    //         println!("Computed λJ²: {:.4}", lambda_j_sq);
+    //         println!("Theoretical π²/8: {:.4}", std::f64::consts::PI.powi(2) / 8.0);
+    //         println!("Residual: {:.2}%", residual);
+    //     }
+    //     Err(e) => {
+    //         eprintln!("Error: {}", e);
+    //         std::process::exit(1);
+    //     }
+    // }
+    walkv2::main();
+    walkv3::main();
 }
