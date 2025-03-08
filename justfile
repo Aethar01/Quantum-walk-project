@@ -1,7 +1,8 @@
 set quiet
 
 alias b := build
-alias r := run
+alias r1 := runv1
+alias r2 := runv2
 alias c := clean
 
 # Variables
@@ -21,15 +22,18 @@ make_venv:
 
 # Build the project
 build: make_venv
-    [ -f {{venv_dir}}/bin/quantum-walk-project ] || {{pip}} install . -v
+    [ -f {{venv_dir}}/bin/walkv1 ] || [ -f {{venv_dir}}/bin/walkv2 ] || {{pip}} install . -q
 
 # Rebuild the project
 rebuild: make_venv
-    {{pip}} install --upgrade . -v
+    {{pip}} install --upgrade . -q
 
 # Run the project
-run *ARGS: build
-    {{venv_dir}}/bin/quantum-walk-project {{ARGS}}
+runv1 *ARGS: build
+    {{venv_dir}}/bin/walkv1 {{ARGS}}
+
+runv2 *ARGS: build
+    {{venv_dir}}/bin/walkv2 {{ARGS}}
 
 # Clean build files and virtual environment
 [no-quiet]

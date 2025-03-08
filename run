@@ -5,8 +5,8 @@
 #-r for run
 args() {
 
-    local options="hbrc"
-    local longoptions="help,build,run,clean"
+    local options="hbr:c"
+    local longoptions="help,build,run:,clean"
     local parsed_args
     parsed_args=$(getopt -o $options --long $longoptions -n "$(basename "$0")" -- "$@")
 
@@ -22,7 +22,8 @@ args() {
                 BUILD=true
                 ;;
             -r | --run)
-                RUN=true
+                shift
+                RUN=$1
                 ;;
             -c | --clean)
                 CLEAN=true
@@ -51,7 +52,7 @@ usage() {
     Options:
     -h, --help              Show this help message and exit
     -b, --build             Build the project
-    -r, --run               Run the project
+    -r, --run               Run the numbered project
     -c, --clean             Clean .venv and target directories
     --                      Pass additional arguments to the project
 EOF
@@ -105,10 +106,10 @@ run() {
     source .venv/bin/activate
 
     # check if the project is installed 
-    if ! command -v quantum-walk-project &> /dev/null; then
+    if ! command -v walkv1 &> /dev/null; then
         error "Quantum walk project is not installed. Please build the project first."
     fi
-    quantum-walk-project "${OPT_ARRAY[@]}"
+    "walkv${RUN}" "${OPT_ARRAY[@]}"
 
     #deactivate venv
     deactivate
@@ -130,7 +131,7 @@ main() {
     fi
 
     #check if run flag is set
-    if [ "$RUN" = true ]; then
+    if [ -n "$RUN" ]; then
         run
     fi
 
@@ -145,7 +146,6 @@ OPT_ARRAY=()
 
 #flags for build and run
 BUILD=false
-RUN=false
 
 #check if python3 is installed
 check_python

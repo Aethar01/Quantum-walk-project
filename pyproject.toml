@@ -29,4 +29,5 @@ module-name = "quantum_walk_project.walkers"
 features = ["pyo3/extension-module"]
 
 [project.scripts]
-quantum-walk-project = "quantum_walk_project.main:main"
+walkv1 = "quantum_walk_project.walkv1:main"
+walkv2 = "quantum_walk_project.walkv2:main"

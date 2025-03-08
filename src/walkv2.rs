@@ -1,80 +1,74 @@
 use rand::prelude::*;
-use std::f64::consts::PI;
+use anyhow::Result;
 
-pub fn main() {
-    // Simulation parameters
-    let h_x = 0.25;          // Spatial step size
-    let h_tau = h_x * h_x;   // Time step size (h_tau = h_x²)
-    let n_walkers = 10_000;  // Number of initial walkers
-    let max_steps = 32;       // Corresponds to τ = 2.0 (32 * 0.0625)
-    let delta_tau_steps = 10; // Δτ = 10 * h_tau = 0.625
+fn potential(x: f64) -> f64 {
+    0.5 * x * x
+}
 
-    // Potential function (SHO)
-    let potential = |x: f64| 0.5 * x * x;
-
-    // Initialize random number generator and walkers
+fn run_walkers(n_walkers: usize, max_steps: usize, h_x: f64, h_tau: f64) -> Vec<usize> {
     let mut rng = rand::rng();
     let mut active_walkers = vec![0.0; n_walkers];
     let mut survival_counts = Vec::with_capacity(max_steps);
-    let mut tau_2_positions = Vec::new();
 
-    // Main simulation loop
-    for step in 0..max_steps {
+    for _ in 0..max_steps {
         let mut next_walkers = Vec::with_capacity(active_walkers.len());
         
         for &x in &active_walkers {
-            // Random step direction
             let x_new = x + if rng.random_bool(0.5) { h_x } else { -h_x };
-            
-            // Absorption probability
             let a = h_tau * potential(x_new);
             if rng.random::<f64>() >= a {
                 next_walkers.push(x_new);
             }
         }
         
-        // Record survival count and positions at τ=2.0
-        if step == max_steps - 1 {
-            tau_2_positions = next_walkers.clone();
-        }
         survival_counts.push(next_walkers.len());
         active_walkers = next_walkers;
     }
 
+    survival_counts
+}
+
+fn e0_estimate(survival_counts: &Vec<usize>, delta_tau_steps: usize, h_tau: f64) -> Vec<f64> {
+    (0..(survival_counts.len() - delta_tau_steps))
+        .map(|i| {
+            let current = survival_counts[i] as f64;
+            let future = survival_counts[i + delta_tau_steps] as f64;
+            
+            if current > 0.0 && future > 0.0 {
+                let ratio = future / current;
+                -ratio.ln() / (delta_tau_steps as f64 * h_tau)
+            } else {
+                0.0
+            }
+        }).collect()
+}
+
+pub fn run(h_x: Option<f64>, h_tau: Option<f64>, num_walkers: Option<usize>, max_steps: Option<usize>) -> Result<(Vec<usize>, Vec<f64>)> {
+    // Simulation parameters
+    let h_x = h_x.unwrap_or(0.25);
+    let h_tau = h_tau.unwrap_or(h_x * h_x);
+    let n_walkers = num_walkers.unwrap_or(10_000);
+    let max_steps = max_steps.unwrap_or(32);
+    let delta_tau_steps = 10; // Δτ = 10 * h_tau = 0.625
+
+    // Run walker
+    let survival_counts = run_walkers(n_walkers, max_steps, h_x, h_tau);
+
     // Calculate ground state energy estimates
-    println!("τ\tE0 Estimate");
-    for i in 0..(survival_counts.len() - delta_tau_steps) {
-        let current = survival_counts[i] as f64;
-        let future = survival_counts[i + delta_tau_steps] as f64;
+    // println!("τ\tE0 Estimate");
+    // for i in 0..(survival_counts.len() - delta_tau_steps) {
+    //     let current = survival_counts[i] as f64;
+    //     let future = survival_counts[i + delta_tau_steps] as f64;
         
-        if current > 0.0 && future > 0.0 {
-            let ratio = future / current;
-            let e0_est = -ratio.ln() / (delta_tau_steps as f64 * h_tau);
-            println!("{:.2}\t{:.4}", i as f64 * h_tau, e0_est);
-        }
-    }
+    //     if current > 0.0 && future > 0.0 {
+    //         let ratio = future / current;
+    //         let e0_est = -ratio.ln() / (delta_tau_steps as f64 * h_tau);
+    //         println!("{:.2}\t{:.4}", i as f64 * h_tau, e0_est);
+    //     }
+    // };
 
-    // Generate wavefunction histogram at τ=2.0
-    let bin_width = 0.5;
-    let (min_x, max_x) = (-5.0, 5.0);
-    let num_bins = ((max_x - min_x) / bin_width) as usize;
-    let mut histogram = vec![0; num_bins];
+    // Calculate ground state energy estimates
+    let e0_estimates = e0_estimate(&survival_counts, delta_tau_steps, h_tau);
 
-    for &x in &tau_2_positions {
-        let bin = ((x - min_x) / bin_width) as usize;
-        if bin < num_bins {
-            histogram[bin] += 1;
-        }
-    }
-
-    // Normalize and print histogram
-    println!("\nWavefunction histogram at τ=2.0:");
-    println!("Bin Center\tDensity\t\tExact");
-    let total = tau_2_positions.len() as f64;
-    for (i, &count) in histogram.iter().enumerate() {
-        let center = min_x + (i as f64 + 0.5) * bin_width;
-        let density = (count as f64) / total / bin_width;
-        let exact = (-center.powi(2)).exp() / PI.sqrt();
-        println!("{:.2}\t\t{:.4}\t\t{:.4}", center, density, exact);
-    }
+    Ok((survival_counts, e0_estimates))
 }

@@ -3,6 +3,7 @@ import quantum_walk_project.walkers as qwp
 import pandas as pd
 import matplotlib.pyplot as plt
 import math
+qwp = qwp.walkersv1
 
 
 def parse_arguments():
