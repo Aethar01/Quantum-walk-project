@@ -108,14 +108,15 @@ fn walkersv1(m: &Bound<'_, PyModule>) -> PyResult<()> {
 /// Inputs: h_x, h_tau, num_walkers, maxi_step
 /// Returns: (survival_counts, e0_estimates)
 #[pyfunction]
-#[pyo3(signature = (h_x=0.25, h_tau=0.0625, num_walkers=10_000, max_steps=32))]
+#[pyo3(signature = (h_x=0.25, h_tau=0.0625, num_walkers=10_000, max_steps=32, potential_number=1))]
 fn run_walkv2(
     h_x: Option<f64>,
     h_tau: Option<f64>,
     num_walkers: Option<usize>,
     max_steps: Option<usize>,
+    potential_number: Option<usize>,
 ) -> PyResult<(Vec<usize>, Vec<f64>)> {
-    match walkv2::run(h_x, h_tau, num_walkers, max_steps) {
+    match walkv2::run(h_x, h_tau, num_walkers, max_steps, potential_number) {
         Ok((survival_counts, e0_estimates)) => Ok((survival_counts, e0_estimates)),
         Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
     }

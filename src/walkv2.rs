@@ -5,7 +5,13 @@ fn potential(x: f64) -> f64 {
     0.5 * x * x
 }
 
-fn run_walkers(n_walkers: usize, max_steps: usize, h_x: f64, h_tau: f64) -> Vec<usize> {
+fn run_walkers(n_walkers: usize, max_steps: usize, h_x: f64, h_tau: f64, potential_number: usize) -> Vec<usize> {
+    let potential = match potential_number {
+        1 => {
+            println!("Using potential 1");
+            potential}
+        _ => panic!("Invalid potential function")
+    };
     let mut rng = rand::rng();
     let mut active_walkers = vec![0.0; n_walkers];
     let mut survival_counts = Vec::with_capacity(max_steps);
@@ -43,16 +49,17 @@ fn e0_estimate(survival_counts: &Vec<usize>, delta_tau_steps: usize, h_tau: f64)
         }).collect()
 }
 
-pub fn run(h_x: Option<f64>, h_tau: Option<f64>, num_walkers: Option<usize>, max_steps: Option<usize>) -> Result<(Vec<usize>, Vec<f64>)> {
+pub fn run(h_x: Option<f64>, h_tau: Option<f64>, num_walkers: Option<usize>, max_steps: Option<usize>, potential_number: Option<usize>) -> Result<(Vec<usize>, Vec<f64>)> {
     // Simulation parameters
     let h_x = h_x.unwrap_or(0.25);
     let h_tau = h_tau.unwrap_or(h_x * h_x);
     let n_walkers = num_walkers.unwrap_or(10_000);
     let max_steps = max_steps.unwrap_or(32);
     let delta_tau_steps = 10; // Δτ = 10 * h_tau = 0.625
+    let potential_number = potential_number.unwrap_or(1);
 
     // Run walker
-    let survival_counts = run_walkers(n_walkers, max_steps, h_x, h_tau);
+    let survival_counts = run_walkers(n_walkers, max_steps, h_x, h_tau, potential_number);
 
     // Calculate ground state energy estimates
     // println!("τ\tE0 Estimate");

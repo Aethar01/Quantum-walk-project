@@ -14,6 +14,7 @@ def parse_arguments():
     parser.add_argument('-ms', '--max_steps', type=int, default=32, help='Maximum number of steps per walk (default=32)')
     parser.add_argument('-p', '--plot', action='store_true', help='Plot the results')
     parser.add_argument('-mt', '--max_tau', type=float, help='Maximum of tau (auto-calculates and overrides max_steps)')
+    parser.add_argument('-pot', '--potential', type=int, default=1, help='Potential type: 1=0.5x^2, 2=x, (default=1)')
 
     return parser.parse_args()
 
@@ -28,7 +29,7 @@ def main():
     if args.max_tau:
         args.max_steps = int(args.max_tau / args.h_tau)
 
-    survival_counts, e0_estimates = qwp.run_walkv2(args.h_x, args.h_tau, args.num_walkers, args.max_steps)
+    survival_counts, e0_estimates = qwp.run_walkv2(args.h_x, args.h_tau, args.num_walkers, args.max_steps, args.potential)
     survival_counts = np.array(survival_counts)
     e0_estimates = np.array(e0_estimates)
 
@@ -48,6 +49,7 @@ def main():
     print(f'Final E0 estimate: {e0_estimates[-1]}')
     print('Cutting initial E0 estimates:')
 
-    e0_estimates = e0_estimates[e0_estimates >= 0.4]
+    # cut off initial estimates if tau < 2
+    e0_estimates = e0_estimates[steps_to_tau(np.arange(len(e0_estimates)), args.h_tau) > 2]
 
     print(f'Average E0 estimate: {np.mean(e0_estimates)}')
