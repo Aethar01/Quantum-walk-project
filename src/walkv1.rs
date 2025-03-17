@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use std::io::Write;
 use std::{fs::File, path::PathBuf};
 
-fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<usize> {
+pub fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<Option<usize>> {
     (0..num_walkers)
         .into_par_iter()
         .map_init(
@@ -25,14 +25,15 @@ fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<usize> {
                         break;
                     }
                 }
-                arrest_step.unwrap_or(max_steps + 1)
+                arrest_step
             },
         )
+        // .filter(|&step| step <= max_steps)
         .collect()
 }
 
 /// NOT MULTITHREADED
-fn sim_walkers_seeded(num_walkers: usize, max_steps: usize, j: i32, seed: u64) -> Vec<usize> {
+fn sim_walkers_seeded(num_walkers: usize, max_steps: usize, j: i32, seed: u64) -> Vec<Option<usize>> {
     let mut rng = Pcg64::seed_from_u64(seed);
     (0..num_walkers)
         .map(|_| {
@@ -49,7 +50,7 @@ fn sim_walkers_seeded(num_walkers: usize, max_steps: usize, j: i32, seed: u64) -
                     break;
                 }
             }
-            arrest_step.unwrap_or(max_steps + 1)
+            arrest_step
         })
         .collect()
 }
@@ -72,7 +73,7 @@ pub fn run(
     threads: usize,
     output: Option<PathBuf>,
     seed: u64,
-) -> Result<(f64, f64, f64)> {
+) -> Result<(f64, f64, f64, f64)> {
     // Validate inputs
     if j <= 0 {
         return Err(anyhow::anyhow!("J must be positive"));
@@ -97,9 +98,9 @@ pub fn run(
 
     let arrest_steps: Vec<usize> = {
         if seed == 0 {
-            sim_walkers(num_walkers, max_steps, j)
+            sim_walkers(num_walkers, max_steps, j).into_iter().flatten().collect()
         } else {
-            sim_walkers_seeded(num_walkers, max_steps, j, seed)
+            sim_walkers_seeded(num_walkers, max_steps, j, seed).into_iter().flatten().collect()
         }
     };
 
@@ -142,7 +143,7 @@ pub fn run(
     // Output survival data to file if specified
     write_output_file(output, cum_sum, max_steps)?;
 
-    Ok((j_sq, lambda_j_sq, residual))
+    Ok((j_sq, lambda, lambda_j_sq, residual))
 }
 
 fn write_output_file(output: Option<PathBuf>, cum_sum: Vec<usize>, max_steps: usize) -> Result<()> {

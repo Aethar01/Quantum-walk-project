@@ -5,11 +5,18 @@ fn potential(x: f64) -> f64 {
     0.5 * x * x
 }
 
+fn potential1(x: f64) -> f64 {
+    x * x 
+}
+
 fn run_walkers(n_walkers: usize, max_steps: usize, h_x: f64, h_tau: f64, potential_number: usize) -> Vec<usize> {
     let potential = match potential_number {
         1 => {
-            println!("Using potential 1");
-            potential}
+            potential
+        }
+        2 => {
+            potential1
+        }
         _ => panic!("Invalid potential function")
     };
     let mut rng = rand::rng();
@@ -34,7 +41,7 @@ fn run_walkers(n_walkers: usize, max_steps: usize, h_x: f64, h_tau: f64, potenti
     survival_counts
 }
 
-fn e0_estimate(survival_counts: &Vec<usize>, delta_tau_steps: usize, h_tau: f64) -> Vec<f64> {
+fn e0_estimate(survival_counts: &Vec<usize>, delta_tau_steps: usize, h_tau: f64) -> (Vec<f64>, Vec<f64>) {
     (0..(survival_counts.len() - delta_tau_steps))
         .map(|i| {
             let current = survival_counts[i] as f64;
@@ -42,14 +49,15 @@ fn e0_estimate(survival_counts: &Vec<usize>, delta_tau_steps: usize, h_tau: f64)
             
             if current > 0.0 && future > 0.0 {
                 let ratio = future / current;
-                -ratio.ln() / (delta_tau_steps as f64 * h_tau)
+                (-ratio.ln() / (delta_tau_steps as f64 * h_tau),
+                ratio / (delta_tau_steps as f64 * h_tau))
             } else {
-                0.0
+                (0.0, 0.0)
             }
         }).collect()
 }
 
-pub fn run(h_x: Option<f64>, h_tau: Option<f64>, num_walkers: Option<usize>, max_steps: Option<usize>, potential_number: Option<usize>) -> Result<(Vec<usize>, Vec<f64>)> {
+pub fn run(h_x: Option<f64>, h_tau: Option<f64>, num_walkers: Option<usize>, max_steps: Option<usize>, potential_number: Option<usize>) -> Result<(Vec<usize>, Vec<f64>, Vec<f64>)> {
     // Simulation parameters
     let h_x = h_x.unwrap_or(0.25);
     let h_tau = h_tau.unwrap_or(h_x * h_x);
@@ -77,5 +85,5 @@ pub fn run(h_x: Option<f64>, h_tau: Option<f64>, num_walkers: Option<usize>, max
     // Calculate ground state energy estimates
     let e0_estimates = e0_estimate(&survival_counts, delta_tau_steps, h_tau);
 
-    Ok((survival_counts, e0_estimates))
+    Ok((survival_counts, e0_estimates.0, e0_estimates.1))
 }

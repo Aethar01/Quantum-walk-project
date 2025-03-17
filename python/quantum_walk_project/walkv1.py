@@ -42,6 +42,7 @@ def parse_arguments():
 
     parser.add_argument('-a', '--analyse', action='store_true',
                         help='Narrow down paramenters automatically')
+    parser.add_argument('-ar', '--analyse_runs', type=int, default=100, help='Number of runs to analyse (default=100)')
 
     return parser.parse_args()
 
@@ -134,7 +135,7 @@ def main():
         args.num_walkers_upper = af['num_walkers'].values[0]
         args.max_steps_lower = af['max_steps'].values[0]
         args.max_steps_upper = af['max_steps'].values[0]
-        args.runs = 100
+        args.runs = args.analyse_runs
         df = generate_data_frame(args)
 
     if args.output:

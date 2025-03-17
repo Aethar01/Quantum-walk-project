@@ -4,12 +4,14 @@ use pyo3::{prelude::*, wrap_pymodule};
 
 mod walkv1;
 mod walkv2;
+mod walkv3;
 
 /// Result { j_sq, lambda_j_sq, num_walkers, max_steps, residual }
 #[pyclass{get_all}]
 struct Result {
     j: i32,
     j_sq: f64,
+    lambda: f64,
     lambda_j_sq: f64,
     num_walkers: usize,
     max_steps: usize,
@@ -28,9 +30,10 @@ fn run_walk(
     seed: u64,
 ) -> PyResult<Result> {
     match walkv1::run(j, num_walkers, max_steps, threads, None, seed) {
-        Ok((j_sq, lambda_j_sq, residual)) => Ok(Result {
+        Ok((j_sq, lambda, lambda_j_sq, residual)) => Ok(Result {
             j,
             j_sq,
+            lambda,
             lambda_j_sq,
             num_walkers,
             max_steps,
@@ -75,11 +78,12 @@ fn run_many_run_walk(
                     None,
                     seed,
                 ) {
-                    Ok((j_sq, lambda_j_sq, residual)) => {
+                    Ok((j_sq, lambda, lambda_j_sq, residual)) => {
                         bar.inc(1);
                         results.push(Result {
                             j: j as i32,
                             j_sq,
+                            lambda,
                             lambda_j_sq,
                             num_walkers: num_walkers as usize,
                             max_steps: max_steps as usize,
@@ -115,9 +119,9 @@ fn run_walkv2(
     num_walkers: Option<usize>,
     max_steps: Option<usize>,
     potential_number: Option<usize>,
-) -> PyResult<(Vec<usize>, Vec<f64>)> {
+) -> PyResult<(Vec<usize>, Vec<f64>, Vec<f64>)> {
     match walkv2::run(h_x, h_tau, num_walkers, max_steps, potential_number) {
-        Ok((survival_counts, e0_estimates)) => Ok((survival_counts, e0_estimates)),
+        Ok((survival_counts, e0_estimates, e0estimates_no_ln)) => Ok((survival_counts, e0_estimates, e0estimates_no_ln)),
         Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
     }
 }

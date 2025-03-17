@@ -28,17 +28,18 @@ or
 To run the project, execute the following command:
 
 ```bash
-just run [options]
+just run{int} [options]
 ```
 or
 ```bash
-./run -r -- [options]
+./run -r {int} -- [options]
 ```
 
 The options are:
 
+For simulation 1:
 ```
-usage: quantum-walk-project [-h] [-nu NUM_WALKERS_UPPER] [-nl NUM_WALKERS_LOWER] [-ns NUM_WALKERS_STEP] [-ju J_UPPER] [-jl J_LOWER] [-js J_STEP] [-mu MAX_STEPS_UPPER]
+usage: walkv1 [-h] [-nu NUM_WALKERS_UPPER] [-nl NUM_WALKERS_LOWER] [-ns NUM_WALKERS_STEP] [-ju J_UPPER] [-jl J_LOWER] [-js J_STEP] [-mu MAX_STEPS_UPPER]
                             [-ml MAX_STEPS_LOWER] [-ms MAX_STEPS_STEP] [-s SEED] [-t THREADS] [-o OUTPUT] [-r RUNS] [-a]
 
 options:
@@ -66,6 +67,29 @@ options:
   -o, --output OUTPUT   Output file name
   -r, --runs RUNS       Number of times to run the simulation (default=1)
   -a, --analyse         Narrow down paramenters automatically
+```
+
+For simulation 2:
+```
+usage: walkv2 [-h] [-h_x H_X] [-h_tau H_TAU] [-nw NUM_WALKERS]
+              [-ms MAX_STEPS] [-p] [-mt MAX_TAU] [-pot POTENTIAL]
+
+options:
+  -h, --help            show this help message and exit
+  -h_x, --h_x H_X       Step size in x direction (default=0.25)
+  -h_tau, --h_tau H_TAU
+                        Step size in tau direction (default=0.0625)
+  -nw, --num_walkers NUM_WALKERS
+                        Number of walkers (default=10_000)
+  -ms, --max_steps MAX_STEPS
+                        Maximum number of steps per walk
+                        (default=32)
+  -p, --plot            Plot the results
+  -mt, --max_tau MAX_TAU
+                        Maximum of tau (auto-calculates and
+                        overrides max_steps)
+  -pot, --potential POTENTIAL
+                        Potential type: 1=0.5x^2, 2=x, (default=1)
 ```
 
 ## Clean
