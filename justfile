@@ -4,6 +4,7 @@ alias b := build
 alias r1 := runv1
 alias r2 := runv2
 alias c := clean
+alias rb := rebuild
 
 # Variables
 venv_dir := ".venv"

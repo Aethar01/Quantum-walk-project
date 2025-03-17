@@ -119,9 +119,9 @@ fn run_walkv2(
     num_walkers: Option<usize>,
     max_steps: Option<usize>,
     potential_number: Option<usize>,
-) -> PyResult<(Vec<usize>, Vec<f64>, Vec<f64>)> {
+) -> PyResult<(Vec<usize>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<(f64, usize)>, Vec<Vec<f64>>)> {
     match walkv2::run(h_x, h_tau, num_walkers, max_steps, potential_number) {
-        Ok((survival_counts, e0_estimates, e0estimates_no_ln)) => Ok((survival_counts, e0_estimates, e0estimates_no_ln)),
+        Ok((survival_counts, e0_estimates, e0estimates_no_ln, active_walkers, final_walkers, active_walkers_at_all_steps)) => Ok((survival_counts, e0_estimates, e0estimates_no_ln, active_walkers, final_walkers, active_walkers_at_all_steps)),
         Err(e) => Err(PyTypeError::new_err(format!("{:?}", e))),
     }
 }
