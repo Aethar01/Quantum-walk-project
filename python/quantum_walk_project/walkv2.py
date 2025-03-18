@@ -87,8 +87,9 @@ def main():
             values_in_bin = walkers_below_2tau[(walkers_below_2tau >= bin) & (walkers_below_2tau < bin + 2*args.h_x)]
             prob_dividedby_2h_x[i] = len(values_in_bin) / (len(walkers_below_2tau) * 2*args.h_x)
 
-        if not math.isclose(np.sum(prob_dividedby_2h_x * 2*args.h_x), 1, abs_tol=1e-2):
-            raise 'Sum of probabilities is not 1'
+        sum = np.sum(prob_dividedby_2h_x * 2*args.h_x)
+        if not math.isclose(sum, 1, abs_tol=1e-2):
+            raise 'Sum of probabilities is not 1; sum is ' + str(sum)
 
         plt.bar(bins, prob_dividedby_2h_x, width=2*args.h_x, align='edge')
         # ground state wave function
@@ -116,8 +117,9 @@ def main():
             values_in_bin = walkers_below_4tau[(walkers_below_4tau >= bin) & (walkers_below_4tau < bin + 2*args.h_x)]
             prob_dividedby_2h_x[i] = len(values_in_bin) / (len(walkers_below_4tau) * 2*args.h_x)
 
-        if not math.isclose(np.sum(prob_dividedby_2h_x * 2*args.h_x), 1, abs_tol=1e-2):
-            raise 'Sum of probabilities is not 1'
+        sum = np.sum(prob_dividedby_2h_x * 2*args.h_x)
+        if not math.isclose(sum, 1, abs_tol=1e-2):
+            raise 'Sum of probabilities is not 1; sum is ' + str(sum)
 
         plt.bar(bins, prob_dividedby_2h_x, width=2*args.h_x, align='edge')
         # ground state wave function
