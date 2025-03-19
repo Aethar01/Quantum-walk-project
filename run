@@ -52,7 +52,7 @@ usage() {
     Options:
     -h, --help              Show this help message and exit
     -b, --build             Build the project
-    -r, --run               Run the numbered project
+    -r, --run [VERSION]     Run the project with the specified version
     -c, --clean             Clean .venv and target directories
     --                      Pass additional arguments to the project
 EOF
