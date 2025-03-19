@@ -39,41 +39,48 @@ The options are:
 
 For simulation 1:
 ```
-usage: walkv1 [-h] [-nu NUM_WALKERS_UPPER] [-nl NUM_WALKERS_LOWER] [-ns NUM_WALKERS_STEP] [-ju J_UPPER] [-jl J_LOWER] [-js J_STEP] [-mu MAX_STEPS_UPPER]
-                            [-ml MAX_STEPS_LOWER] [-ms MAX_STEPS_STEP] [-s SEED] [-t THREADS] [-o OUTPUT] [-r RUNS] [-a]
-
+usage: walkv1 [-h] [-nu NUM_WALKERS_UPPER] [-nl NUM_WALKERS_LOWER] [-ns NUM_WALKERS_STEP] [-ju J_UPPER] [-jl J_LOWER] [-js J_STEP]
+              [-mu MAX_STEPS_UPPER] [-ml MAX_STEPS_LOWER] [-ms MAX_STEPS_STEP] [-s SEED] [-t THREADS] [-o OUTPUT] [-r RUNS] [-a]
+              [-ar ANALYSE_RUNS] [-p] [-pb]
+Quantum Walker Simulation
 options:
   -h, --help            show this help message and exit
-  -nu, --num_walkers_upper NUM_WALKERS_UPPER
-                        Maximum number of random walks to simulate (Inclusive, default=1000)
-  -nl, --num_walkers_lower NUM_WALKERS_LOWER
-                        Minimum number of random walks to simulate (Inclusive, default=100)
-  -ns, --num_walkers_step NUM_WALKERS_STEP
-                        Step size for number of random walks (default=100)
-  -ju, --j_upper J_UPPER
-                        Maximum lattice size J (boundary at ±J) (Inclusive, default=20)
-  -jl, --j_lower J_LOWER
-                        Minimum lattice size J (boundary at ±J) (Inclusive, default=6)
-  -js, --j_step J_STEP  Step size for lattice size (default=2)
-  -mu, --max_steps_upper MAX_STEPS_UPPER
-                        Maximum number of steps per walk (Inclusive, default=1000)
-  -ml, --max_steps_lower MAX_STEPS_LOWER
-                        Minimum number of steps per walk (Inclusive, default=100)
-  -ms, --max_steps_step MAX_STEPS_STEP
-                        Step size for number of steps per walk (default=100)
-  -s, --seed SEED       Seed for random number generator. If 0, seed is random. NOTE: IF A SEED IS PROVIDED, THE PROCESS IS NOT MULTITHREADED (default=0)
+  -s, --seed SEED       Seed for RNG. If 0, seed is random. NOTE: With seed, process is not multithreaded (default=0)
   -t, --threads THREADS
                         Number of threads to use. If 0, use all available threads (default=0)
   -o, --output OUTPUT   Output file name
   -r, --runs RUNS       Number of times to run the simulation (default=1)
-  -a, --analyse         Narrow down paramenters automatically
+  -a, --analyse         Narrow down parameters automatically
+  -ar, --analyse_runs ANALYSE_RUNS
+                        Number of runs to analyse (default=100)
+  -p, --plot            Plot the results
+  -pb, --progressbar    Display progress bar
+Walker Parameters:
+  -nu, --num_walkers_upper NUM_WALKERS_UPPER
+                        Maximum number of random walks (inclusive, default=1000)
+  -nl, --num_walkers_lower NUM_WALKERS_LOWER
+                        Minimum number of random walks (inclusive, default=100)
+  -ns, --num_walkers_step NUM_WALKERS_STEP
+                        Step size for number of random walks (default=100)
+Lattice Parameters:
+  -ju, --j_upper J_UPPER
+                        Maximum lattice size J (boundary at ±J) (inclusive, default=20)
+  -jl, --j_lower J_LOWER
+                        Minimum lattice size J (boundary at ±J) (inclusive, default=6)
+  -js, --j_step J_STEP  Step size for lattice size (default=2)
+Step Parameters:
+  -mu, --max_steps_upper MAX_STEPS_UPPER
+                        Maximum number of steps per walk (inclusive, default=1000)
+  -ml, --max_steps_lower MAX_STEPS_LOWER
+                        Minimum number of steps per walk (inclusive, default=100)
+  -ms, --max_steps_step MAX_STEPS_STEP
+                        Step size for number of steps per walk (default=100)
 ```
 
 For simulation 2:
 ```
-usage: walkv2 [-h] [-h_x H_X] [-h_tau H_TAU] [-nw NUM_WALKERS]
-              [-ms MAX_STEPS] [-p] [-mt MAX_TAU] [-pot POTENTIAL]
-
+usage: walkv2 [-h] [-h_x H_X] [-h_tau H_TAU] [-nw NUM_WALKERS] [-ms MAX_STEPS] [-p] [-mt MAX_TAU] [-pot POTENTIAL] [-a]
+Quantum Walker Simulation (v2)
 options:
   -h, --help            show this help message and exit
   -h_x, --h_x H_X       Step size in x direction (default=0.25)
@@ -82,14 +89,13 @@ options:
   -nw, --num_walkers NUM_WALKERS
                         Number of walkers (default=10_000)
   -ms, --max_steps MAX_STEPS
-                        Maximum number of steps per walk
-                        (default=32)
+                        Maximum number of steps per walk (default=80)
   -p, --plot            Plot the results
   -mt, --max_tau MAX_TAU
-                        Maximum of tau (auto-calculates and
-                        overrides max_steps)
+                        Maximum of tau (auto-calculates and overrides max_steps)
   -pot, --potential POTENTIAL
                         Potential type: 1=0.5x^2, 2=x, (default=1)
+  -a, --auto_analyze    Automatically analyze optimal parameters
 ```
 
 ## Clean
