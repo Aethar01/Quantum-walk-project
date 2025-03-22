@@ -3,6 +3,7 @@ set quiet
 alias b := build
 alias r1 := runv1
 alias r2 := runv2
+alias r3 := runv3
 alias c := clean
 alias rb := rebuild
 
@@ -35,6 +36,9 @@ runv1 *ARGS: build
 
 runv2 *ARGS: build
     {{venv_dir}}/bin/walkv2 {{ARGS}}
+
+runv3 *ARGS: build
+    {{venv_dir}}/bin/walkv3 {{ARGS}}
 
 # Clean build files and virtual environment
 [no-quiet]

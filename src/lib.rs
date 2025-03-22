@@ -4,6 +4,7 @@ use pyo3::{prelude::*, wrap_pymodule};
 
 mod walkv1;
 mod walkv2;
+mod walkv3;
 
 /// Result of a quantum walk simulation
 #[pyclass(get_all)]
@@ -143,23 +144,15 @@ fn walkersv1(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-/// Run a quantum walk simulation with V2 algorithm
+/// Run a full Monte Carlo diffusion simulation (1D).
 ///
-/// Args:
-///     h_x: Step size in x direction (default=0.25)
-///     h_tau: Step size in tau direction (default=0.0625)
-///     num_walkers: Number of walkers to simulate (default=10_000)
-///     max_steps: Maximum number of steps per walker (default=32)
-///     potential_number: Type of potential to use (default=1)
-///
-/// Returns:
-///     Tuple containing:
-///     - survival_counts: Number of surviving walkers at each step
-///     - e0_estimates: Ground state energy estimates at each step
-///     - e0_estimates_no_ln: Energy estimates without ln term
-///     - active_walkers: Number of active walkers at each step
-///     - final_walkers: Final positions and counts of walkers
-///     - active_walkers_at_all_steps: Positions of active walkers at each step
+/// Returns a tuple containing:
+/// 	`survival_counts`: Number of surviving walkers at each step.
+/// 	`energy.values`: Ground state energy estimates.
+/// 	`energy.uncertainties`: Uncertainties in energy estimates.
+/// 	`active_walkers`: Final positions of surviving walkers (1D).
+/// 	`final_locations`: Positions and steps at which walkers were terminated (1D).
+/// 	`walker_history`: Positions of all active walkers at each step (1D).
 #[pyfunction]
 #[pyo3(signature = (h_x=0.25, h_tau=0.0625, num_walkers=10_000, max_steps=32, potential_number=1))]
 fn run_walkv2(
@@ -168,7 +161,14 @@ fn run_walkv2(
     num_walkers: usize,
     max_steps: usize,
     potential_number: usize,
-) -> PyResult<(Vec<usize>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<(f64, usize)>, Vec<Vec<f64>>)> {
+) -> PyResult<(
+    Vec<usize>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<(f64, usize)>,
+    Vec<Vec<f64>>
+)> {
     walkv2::run(
         Some(h_x), 
         Some(h_tau), 
@@ -186,12 +186,61 @@ fn walkersv2(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+/// Run a full Monte Carlo diffusion simulation for multiple dimensions.
+///
+/// The additional parameter `dimensions` specifies the number of spatial dimensions.
+/// If `dimensions` is set to 1, this function delegates to the 1D simulation for
+/// backward compatibility.
+///
+/// Returns a tuple containing:
+/// 	`survival_counts`: Number of surviving walkers at each step.
+/// 	`energy.values`: Ground state energy estimates.
+/// 	`energy.uncertainties`: Uncertainties in energy estimates.
+/// 	`active_walkers`: Final positions of surviving walkers (each position is a Vec).
+/// 	`final_locations`: Positions and steps at which walkers were terminated (each position is a Vec).
+/// 	`walker_history`: Positions of all active walkers at each step (multi-dimensional).
+#[pyfunction]
+#[pyo3(signature = (h_x=0.25, h_tau=0.0625, num_walkers=10_000, max_steps=32, potential_number=1, dimensions=1))]
+fn run_walkv3(
+    h_x: f64,
+    h_tau: f64,
+    num_walkers: usize,
+    max_steps: usize,
+    potential_number: usize,
+    dimensions: usize,
+) -> PyResult<(
+    Vec<usize>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<Vec<f64>>,
+    Vec<(Vec<f64>, usize)>,
+    Vec<Vec<Vec<f64>>>,
+)> {
+    walkv3::run_multi(
+        Some(h_x), 
+        Some(h_tau), 
+        Some(num_walkers), 
+        Some(max_steps), 
+        Some(potential_number),
+        Some(dimensions)
+    )
+    .map_err(|e| PyTypeError::new_err(format!("{:?}", e)))
+}
+
+/// Module containing v3 quantum walk simulations
+#[pymodule]
+fn walkersv3(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(run_walkv3, m)?)?;
+    Ok(())
+}
+
 /// Main quantum walk project module
 #[pymodule]
 #[pyo3(name = "walkers")]
 fn quantum_walk_project(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(walkersv1))?;
     m.add_wrapped(wrap_pymodule!(walkersv2))?;
+    m.add_wrapped(wrap_pymodule!(walkersv3))?;
     Ok(())
 }
 

@@ -91,6 +91,8 @@ def run_simulation(params: SimulationParameters) -> SimulationResults:
         )
     )
 
+    print(final_walkers)
+
     # Convert lists to numpy arrays for better handling
     return SimulationResults(
         survival_counts=np.array(survival_counts),
