@@ -65,8 +65,10 @@ def parse_arguments():
                         help='Number of runs to analyse (default=100)')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='Plot the results')
-    parser.add_argument('-pb', '--progressbar', action='store_true', help='Display progress bar')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.1.0')
+    parser.add_argument('-pb', '--progressbar',
+                        action='store_true', help='Display progress bar')
+    parser.add_argument('-v', '--version', action='version',
+                        version='%(prog)s 0.1.0')
 
     return parser.parse_args()
 
@@ -242,16 +244,37 @@ def print_statistics(df: pd.DataFrame, theoretical: float):
     # Calculate confidence interval
     confidence = 0.95
     z = 1.96  # z-score for 95% confidence
-    ci_half_width = z * std_dev / np.sqrt(len(df))
-    ci_lower = average - ci_half_width
-    ci_upper = average + ci_half_width
+    mean_ci_half_width = z * std_dev / np.sqrt(len(df))
+    mean_ci_lower = average - mean_ci_half_width
+    mean_ci_upper = average + mean_ci_half_width
+    median_ci_half_width = z * std_dev / np.sqrt(len(df))
+    median_ci_lower = median - median_ci_half_width
+    median_ci_upper = median + median_ci_half_width
+    mode_ci_half_width = z * std_dev / np.sqrt(len(df))
+    mode_ci_lower = mode - mode_ci_half_width
+    mode_ci_upper = mode + mode_ci_half_width
 
     print(
-        f"{confidence*100:.0f}% Confidence Interval: [{ci_lower:.6f}, {ci_upper:.6f}]")
-    if ci_lower <= theoretical <= ci_upper:
-        print("✅ Theoretical value is within the confidence interval")
+        f"{confidence*100:.0f}% Confidence Interval for mean value: [{mean_ci_lower:.6f}, {mean_ci_upper:.6f}]")
+
+    if mean_ci_lower <= theoretical <= mean_ci_upper:
+        print("✅ Theoretical value is within the mean confidence interval")
     else:
-        print("❌ Theoretical value is outside the confidence interval")
+        print("❌ Theoretical value is outside the mean confidence interval")
+
+    print(
+        f"{confidence*100:.0f}% Confidence Interval for median value: [{median_ci_lower:.6f}, {median_ci_upper:.6f}]")
+    if median_ci_lower <= theoretical <= median_ci_upper:
+        print("✅ Theoretical value is within the median confidence interval")
+    else:
+        print("❌ Theoretical value is outside the median confidence interval")
+
+    print(
+        f"{confidence*100:.0f}% Confidence Interval for mode value: [{mode_ci_lower:.6f}, {mode_ci_upper:.6f}]")
+    if mode_ci_lower <= theoretical <= mode_ci_upper:
+        print("✅ Theoretical value is within the mode confidence interval")
+    else:
+        print("❌ Theoretical value is outside the mode confidence interval")
 
 
 def main():
