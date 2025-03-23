@@ -5,6 +5,7 @@ use pyo3::{prelude::*, wrap_pymodule};
 mod walkv1;
 mod walkv2;
 mod walkv3;
+mod walkv4;
 
 /// Result of a quantum walk simulation
 #[pyclass(get_all)]
@@ -234,6 +235,12 @@ fn walkersv3(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+/// Module containing v4 quantum walk simulations
+#[pymodule]
+fn walkersv4(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(walkv4::run_qmc_simulation, m)?)?;
+    Ok(())
+}
 /// Main quantum walk project module
 #[pymodule]
 #[pyo3(name = "walkers")]
@@ -241,6 +248,7 @@ fn quantum_walk_project(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(walkersv1))?;
     m.add_wrapped(wrap_pymodule!(walkersv2))?;
     m.add_wrapped(wrap_pymodule!(walkersv3))?;
+    m.add_wrapped(wrap_pymodule!(walkersv4))?;
     Ok(())
 }
 

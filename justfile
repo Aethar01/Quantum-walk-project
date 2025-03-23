@@ -4,6 +4,7 @@ alias b := build
 alias r1 := runv1
 alias r2 := runv2
 alias r3 := runv3
+alias r4 := runv4
 alias c := clean
 alias rb := rebuild
 
@@ -39,6 +40,9 @@ runv2 *ARGS: build
 
 runv3 *ARGS: build
     {{venv_dir}}/bin/walkv3 {{ARGS}}
+
+runv4 *ARGS: build
+    {{venv_dir}}/bin/walkv4 {{ARGS}}
 
 # Clean build files and virtual environment
 [no-quiet]

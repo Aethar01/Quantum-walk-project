@@ -32,3 +32,4 @@ features = ["pyo3/extension-module"]
 walkv1 = "quantum_walk_project.walkv1:main"
 walkv2 = "quantum_walk_project.walkv2:main"
 walkv3 = "quantum_walk_project.walkv3:main"
+walkv4 = "quantum_walk_project.walkv4:main"
