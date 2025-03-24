@@ -48,7 +48,7 @@ def collect_walkers_before_step(results, target_step):
     return np.array(all_walkers), step
 
 
-def plot_wave_function(results, target_steps, range_width=200):
+def plot_wave_function(results, target_steps):
     """Plot wave function at specific steps"""
     # Generate exact solution
     xmin, xmax = -6.0, 6.0
@@ -64,7 +64,7 @@ def plot_wave_function(results, target_steps, range_width=200):
     colors = ['b-', 'g--', 'r-.', 'm:']
     for i, step in enumerate(target_steps):
         # Collect walker positions around target step
-        walkers, step = collect_walkers_before_step(results, step, range_width)
+        walkers, step = collect_walkers_before_step(results, step)
 
         # Calculate histogram
         if len(walkers) > 0:
@@ -192,7 +192,6 @@ def main():
         ds=args.ds,         # Step length
         w0=args.w0,         # Initial distribution width
         dt_factor=args.dt_factor,  # Time step factor
-        save_steps=args.save_steps  # Steps at which to save histograms
     )
 
     # Extract data
