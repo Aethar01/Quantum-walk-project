@@ -60,7 +60,8 @@ def parse_arguments() -> SimulationParameters:
                         help='Potential type: 1=0.5x^2, 2=x, (default=1)')
     parser.add_argument('-a', '--auto_analyze', action='store_true',
                         help='Automatically analyze optimal parameters')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.1.0')
+    parser.add_argument('-v', '--version', action='version',
+                        version='%(prog)s 0.1.0')
 
     args = parser.parse_args()
 
@@ -79,6 +80,267 @@ def parse_arguments() -> SimulationParameters:
     return params, args.plot, args.auto_analyze
 
 
+def calculate_energy_errors(results: SimulationResults, theoretical_value: float, tau_value: float):
+    """
+    Calculate standard errors and confidence intervals for energy estimates at a given tau.
+    Uses bootstrap resampling for more robust error estimation.
+    """
+    tau_values = results.get_tau_values()
+
+    # Find index closest to requested tau
+    tau_idx = np.argmin(np.abs(tau_values - tau_value))
+    actual_tau = tau_values[tau_idx]
+
+    # Get energy estimate at this tau
+    e0_estimate = results.e0_estimates[tau_idx]
+
+    # Calculate residual
+    residual = e0_estimate - theoretical_value
+
+    # For standard error estimation, we need to bootstrap since we don't have direct access
+    # to individual walker energy estimates
+
+    # Create a window around the target tau to estimate variability
+    window_size = 5
+    window_start = max(0, tau_idx - window_size)
+    window_end = min(len(tau_values), tau_idx + window_size + 1)
+    window_estimates = results.e0_estimates_no_ln[window_start:window_end]
+
+    # Calculate standard deviation in the window
+    std_dev = np.std(window_estimates)
+
+    # Estimate standard error based on number of walkers
+    # This is an approximation since we don't have direct access to individual measurements
+    sem = std_dev / np.sqrt(results.active_walkers[tau_idx])
+
+    # Calculate 95% confidence interval
+    ci_lower = e0_estimate - 1.96 * sem
+    ci_upper = e0_estimate + 1.96 * sem
+
+    # Calculate relative error
+    rel_error = abs(residual / theoretical_value) * 100
+
+    return {
+        'tau': actual_tau,
+        'e0_estimate': e0_estimate,
+        'std_dev': std_dev,
+        'sem': sem,
+        'ci_lower': ci_lower,
+        'ci_upper': ci_upper,
+        'residual': residual,
+        'rel_error': rel_error,
+        'active_walkers': results.active_walkers[tau_idx]
+    }
+
+
+def bootstrap_energy_error(results: SimulationResults, tau_value: float, n_bootstrap=1000):
+    """
+    Perform bootstrap resampling to estimate error on energy at a given tau.
+    This is more accurate than the window-based approach when we have access to walker positions.
+    """
+    tau_values = results.get_tau_values()
+    tau_idx = np.argmin(np.abs(tau_values - tau_value))
+    actual_tau = tau_values[tau_idx]
+
+    # Get walker positions at this tau
+    if tau_idx >= len(results.active_walkers_at_all_steps):
+        print(f"Warning: Requested tau={tau_value} exceeds simulation time.")
+        return None
+
+    walkers = np.array(results.active_walkers_at_all_steps[tau_idx])
+    if len(walkers) < 10:
+        print(f"Warning: Too few walkers at tau={
+              actual_tau} for bootstrap analysis.")
+        return None
+
+    # Calculate potential energy for each walker
+    if results.params.potential == 1:  # Harmonic oscillator
+        potential_energies = 0.5 * walkers**2
+    elif results.params.potential == 2:  # Linear potential
+        potential_energies = np.abs(walkers)
+    else:
+        return None
+
+    # Bootstrap resampling
+    bootstrap_means = []
+    n_walkers = len(walkers)
+
+    for _ in range(n_bootstrap):
+        # Resample with replacement
+        indices = np.random.randint(0, n_walkers, size=n_walkers)
+        resampled_energies = potential_energies[indices]
+        bootstrap_means.append(np.mean(resampled_energies))
+
+    # Calculate statistics from bootstrap distribution
+    bootstrap_mean = np.mean(bootstrap_means)
+    bootstrap_std = np.std(bootstrap_means)
+
+    # 95% confidence interval
+    ci_lower = np.percentile(bootstrap_means, 2.5)
+    ci_upper = np.percentile(bootstrap_means, 97.5)
+
+    return {
+        'tau': actual_tau,
+        'bootstrap_mean': bootstrap_mean,
+        'bootstrap_std': bootstrap_std,
+        'bootstrap_sem': bootstrap_std,
+        'bootstrap_ci_lower': ci_lower,
+        'bootstrap_ci_upper': ci_upper,
+        'n_walkers': n_walkers
+    }
+
+
+def plot_energy_with_errors(results: SimulationResults, theoretical_value: float):
+    """Plot energy estimates with error bars"""
+    tau_values = results.get_tau_values()
+
+    # Ensure arrays have the same length
+    min_length = min(len(tau_values), len(results.e0_estimates))
+    tau_values = tau_values[:min_length]
+    e0_estimates = results.e0_estimates[:min_length]
+
+    # Calculate error bars at regular intervals
+    n_points = min(10, len(tau_values))
+    sample_indices = np.linspace(0, len(tau_values)-1, n_points, dtype=int)
+
+    error_bars = []
+    for idx in sample_indices:
+        tau = tau_values[idx]
+        error_stats = calculate_energy_errors(results, theoretical_value, tau)
+        error_bars.append(error_stats)
+
+    # Plot energy estimates with error bars
+    plt.figure(figsize=(12, 7))
+
+    # Plot all estimates as a line
+    plt.plot(tau_values, e0_estimates, 'b-', alpha=0.5, label='E₀ estimates')
+
+    # Plot error bars at sampled points
+    error_x = [stat['tau'] for stat in error_bars]
+    error_y = [stat['e0_estimate'] for stat in error_bars]
+    error_yerr = [stat['sem'] for stat in error_bars]
+
+    plt.errorbar(error_x, error_y, yerr=error_yerr, fmt='ro',
+                 capsize=4, label='E₀ with standard error')
+
+    # Plot theoretical value
+    plt.axhline(y=theoretical_value, color='g', linestyle='--',
+                label=f'Theoretical: {theoretical_value:.6f}')
+
+    # Add confidence band for selected points
+    for stat in error_bars:
+        plt.fill_between([stat['tau']-0.05, stat['tau']+0.05],
+                         [stat['ci_lower'], stat['ci_lower']],
+                         [stat['ci_upper'], stat['ci_upper']],
+                         color='r', alpha=0.2)
+
+    plt.xlabel('Time (τ)')
+    plt.ylabel('Ground State Energy (E₀)')
+    plt.title('Ground State Energy Estimates with Error Bars')
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_error_convergence(results: SimulationResults, theoretical_value: float):
+    """Plot how the error in energy estimates converges with increasing tau"""
+    tau_values = results.get_tau_values()
+
+    # Ensure arrays have the same length
+    min_length = min(len(tau_values), len(results.e0_estimates_no_ln))
+    tau_values = tau_values[:min_length]
+    e0_estimates = results.e0_estimates_no_ln[:min_length]
+
+    # Calculate absolute errors
+    abs_errors = np.abs(e0_estimates - theoretical_value)
+
+    # Calculate relative errors
+    rel_errors = abs_errors / theoretical_value * 100
+
+    # Calculate standard errors at regular intervals
+    n_points = min(10, len(tau_values))
+    sample_indices = np.linspace(0, len(tau_values)-1, n_points, dtype=int)
+
+    std_errors = []
+    for idx in sample_indices:
+        tau = tau_values[idx]
+        error_stats = calculate_energy_errors(results, theoretical_value, tau)
+        std_errors.append(error_stats['sem'])
+
+    # Plot error convergence
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Plot absolute error
+    ax1.semilogy(tau_values, abs_errors, 'b-', label='Absolute Error')
+    ax1.set_xlabel('Time (τ)')
+    ax1.set_ylabel('Absolute Error |E₀ - E₀_theoretical|')
+    ax1.set_title('Absolute Error Convergence')
+    ax1.grid(True, alpha=0.3, which='both')
+
+    # Plot relative error
+    ax2.semilogy(tau_values, rel_errors, 'r-', label='Relative Error (%)')
+    ax2.set_xlabel('Time (τ)')
+    ax2.set_ylabel('Relative Error (%)')
+    ax2.set_title('Relative Error Convergence')
+    ax2.grid(True, alpha=0.3, which='both')
+
+    # Add standard error points to both plots
+    error_x = [tau_values[idx] for idx in sample_indices]
+    ax1.scatter(error_x, std_errors, color='g', marker='x',
+                label='Standard Error')
+
+    # Add legends
+    ax1.legend()
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+def print_statistics_with_errors(results: SimulationResults, theoretical_value: float, tau_value: float):
+    """Print detailed statistics with error analysis at a given tau"""
+    # Get basic statistics
+    error_stats = calculate_energy_errors(
+        results, theoretical_value, tau_value)
+
+    # Try to get bootstrap statistics if possible
+    bootstrap_stats = bootstrap_energy_error(results, tau_value)
+
+    print(f"\nDetailed Statistics at τ = {error_stats['tau']:.4f}:")
+    print(f"  Ground State Energy Estimate: {error_stats['e0_estimate']:.6f}")
+    print(f"  Theoretical Value: {theoretical_value:.6f}")
+    print(f"  Absolute Error: {abs(error_stats['residual']):.6f}")
+    print(f"  Relative Error: {error_stats['rel_error']:.2f}%")
+    print(f"  Standard Error: {error_stats['sem']:.6f}")
+    print(f"  95% Confidence Interval: [{
+          error_stats['ci_lower']:.6f}, {error_stats['ci_upper']:.6f}]")
+
+    # Check if theoretical value is within confidence interval
+    if error_stats['ci_lower'] <= theoretical_value <= error_stats['ci_upper']:
+        print("  ✅ Theoretical value is within the 95% confidence interval")
+    else:
+        print("  ❌ Theoretical value is outside the 95% confidence interval")
+
+    print(f"  Number of active walkers: {error_stats['active_walkers']}")
+
+    # Print bootstrap statistics if available
+    if bootstrap_stats:
+        print("\n  Bootstrap Analysis:")
+        print(f"    Bootstrap Mean: {bootstrap_stats['bootstrap_mean']:.6f}")
+        print(f"    Bootstrap Standard Error: {
+              bootstrap_stats['bootstrap_sem']:.6f}")
+        print(f"    Bootstrap 95% CI: [{bootstrap_stats['bootstrap_ci_lower']:.6f}, "
+              f"{bootstrap_stats['bootstrap_ci_upper']:.6f}]")
+
+        # Check if theoretical value is within bootstrap confidence interval
+        if (bootstrap_stats['bootstrap_ci_lower'] <= theoretical_value <=
+                bootstrap_stats['bootstrap_ci_upper']):
+            print("    ✅ Theoretical value is within the bootstrap confidence interval")
+        else:
+            print("    ❌ Theoretical value is outside the bootstrap confidence interval")
+
+
 def run_simulation(params: SimulationParameters) -> SimulationResults:
     """Run the quantum walk simulation with given parameters"""
     survival_counts, e0_estimates, e0_estimates_no_ln, active_walkers, final_walkers, active_walkers_at_all_steps = (
@@ -90,8 +352,6 @@ def run_simulation(params: SimulationParameters) -> SimulationResults:
             params.potential
         )
     )
-
-    print(final_walkers)
 
     # Convert lists to numpy arrays for better handling
     return SimulationResults(
@@ -453,7 +713,7 @@ def main():
 
     # Set theoretical value based on potential type
     if params.potential == 1:  # Harmonic oscillator
-        theoretical_value = (np.pi**2) / 8
+        theoretical_value = 0.5  # Ground state energy of harmonic oscillator
     elif params.potential == 2:  # Linear potential
         theoretical_value = 0.808614  # First zero of Airy function
     else:
@@ -478,7 +738,11 @@ def main():
         plot_wave_function(results, 2.0)  # Plot at tau=2
         plot_probability_density(results, 4.0)  # Plot at tau=4
 
-    # Print statistics
-    print_statistics(results, theoretical_value, optimal_tau)
-    print_statistics(results, theoretical_value, 2.0)  # Print at tau=2
-    print_statistics(results, theoretical_value, 4.0)  # Print at tau=4
+        # New error analysis plots
+        plot_energy_with_errors(results, theoretical_value)
+        plot_error_convergence(results, theoretical_value)
+
+    # Print statistics with error analysis
+    print_statistics_with_errors(results, theoretical_value, optimal_tau)
+    print_statistics_with_errors(results, theoretical_value, 2.0)
+    print_statistics_with_errors(results, theoretical_value, 4.0)

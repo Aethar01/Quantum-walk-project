@@ -2,7 +2,6 @@ use std::io::Write;
 mod walkv1;
 mod walkv2;
 mod walkv3;
-mod walkv4;
 
 fn main() { 
     let num_walkers = 10000;

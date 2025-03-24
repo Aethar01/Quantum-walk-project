@@ -5,7 +5,6 @@ use pyo3::{prelude::*, wrap_pymodule};
 mod walkv1;
 mod walkv2;
 mod walkv3;
-mod walkv4;
 
 /// Result of a quantum walk simulation
 #[pyclass(get_all)]
@@ -187,58 +186,10 @@ fn walkersv2(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-/// Run a full Monte Carlo diffusion simulation for multiple dimensions.
-///
-/// The additional parameter `dimensions` specifies the number of spatial dimensions.
-/// If `dimensions` is set to 1, this function delegates to the 1D simulation for
-/// backward compatibility.
-///
-/// Returns a tuple containing:
-/// 	`survival_counts`: Number of surviving walkers at each step.
-/// 	`energy.values`: Ground state energy estimates.
-/// 	`energy.uncertainties`: Uncertainties in energy estimates.
-/// 	`active_walkers`: Final positions of surviving walkers (each position is a Vec).
-/// 	`final_locations`: Positions and steps at which walkers were terminated (each position is a Vec).
-/// 	`walker_history`: Positions of all active walkers at each step (multi-dimensional).
-#[pyfunction]
-#[pyo3(signature = (h_x=0.25, h_tau=0.0625, num_walkers=10_000, max_steps=32, potential_number=1, dimensions=1))]
-fn run_walkv3(
-    h_x: f64,
-    h_tau: f64,
-    num_walkers: usize,
-    max_steps: usize,
-    potential_number: usize,
-    dimensions: usize,
-) -> PyResult<(
-    Vec<usize>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<Vec<f64>>,
-    Vec<(Vec<f64>, usize)>,
-    Vec<Vec<Vec<f64>>>,
-)> {
-    walkv3::run_multi(
-        Some(h_x), 
-        Some(h_tau), 
-        Some(num_walkers), 
-        Some(max_steps), 
-        Some(potential_number),
-        Some(dimensions)
-    )
-    .map_err(|e| PyTypeError::new_err(format!("{:?}", e)))
-}
-
 /// Module containing v3 quantum walk simulations
 #[pymodule]
 fn walkersv3(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run_walkv3, m)?)?;
-    Ok(())
-}
-
-/// Module containing v4 quantum walk simulations
-#[pymodule]
-fn walkersv4(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(walkv4::run_qmc_simulation, m)?)?;
+    m.add_function(wrap_pyfunction!(walkv3::run_qmc_simulation, m)?)?;
     Ok(())
 }
 /// Main quantum walk project module
@@ -248,7 +199,6 @@ fn quantum_walk_project(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(walkersv1))?;
     m.add_wrapped(wrap_pymodule!(walkersv2))?;
     m.add_wrapped(wrap_pymodule!(walkersv3))?;
-    m.add_wrapped(wrap_pymodule!(walkersv4))?;
     Ok(())
 }
 
