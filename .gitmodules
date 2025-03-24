@@ -1,3 +1,4 @@
 [submodule "Qwp-latex"]
 	path = Qwp-latex
 	url = git@github.com:Aethar01/Qwp-latex.git
+	branch = main
