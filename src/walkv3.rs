@@ -16,10 +16,8 @@ pub fn run_qmc_simulation(
     w0: f64,
     dt_factor: usize,
 ) -> PyResult<HashMap<String, Vec<Vec<f64>>>> {
-    // Time step from diffusion relation
     let dt: f64 = ds * ds / dt_factor as f64;
     
-    // Initialize random number generator
     let mut rng = rand::rng();
     
     // Initialize walkers with random gaussian distribution positions within w0 of origin
@@ -33,64 +31,55 @@ pub fn run_qmc_simulation(
         })
         .collect();
     
-    // Initialize energy tracking
     let mut e_sum: f64 = 0.0;
     let mut v_ref: f64 = 0.0;
     let mut energy_data = Vec::new();
     let mut vref_data = Vec::new();
     let mut walker_count_data = Vec::new();
     
-    // Store walker positions at save steps
     let mut all_walker_positions: HashMap<usize, Vec<f64>> = HashMap::new();
     
-    // Calculate initial reference energy
     v_ref = walkers.iter().map(|&x| potential(x)).sum::<f64>() / walkers.len() as f64;
     
-    // Main simulation loop
     for imcs in 1..=mcs {
         let n_before = walkers.len();
         
-        // Process each walker
         let mut i = 0;
         while i < walkers.len() {
-            // Random move (left or right)
             if rng.random::<bool>() {
                 walkers[i] += ds;
             } else {
                 walkers[i] -= ds;
             }
             
-            // Calculate potential and potential difference
             let v = potential(walkers[i]);
             let dv = v - v_ref;
             
-            // Birth/death process
             let r = rng.random::<f64>();
             let birth_death_prob = (dv * dt).abs().min(0.3);  // Limit max probability
 
             if dv > 0.0 && r < birth_death_prob {
-                // Remove walker
                 walkers.swap_remove(i);
                 continue; // Don't increment i since we removed a walker
             } else if dv < 0.0 && r < birth_death_prob {
-                // Add walker
                 walkers.push(walkers[i]);
             }
             
             i += 1;
         }
+
+        if walkers.is_empty() {
+            break;
+        }
         
-        // Calculate mean potential
         let v_mean = if walkers.is_empty() {
-            0.5  // Default to theoretical value if no walkers
+            0.5
         } else {
             walkers.iter().map(|&x| potential(x)).sum::<f64>() / walkers.len() as f64
         };
 
-         // Damping factor for Vref updates (prevents wild oscillations)
         let damping: f64 = 0.01;
         
-        // Update reference potential
         let n_after = walkers.len();
         if n_before > 0 {
             let v_ref_update = v_mean - (n_after as f64 - n_before as f64) / (n_before as f64 * dt);
@@ -98,20 +87,16 @@ pub fn run_qmc_simulation(
             v_ref = (1.0 - damping) * v_ref + damping * v_ref_update;
         }
         
-        // Accumulate energy
         e_sum += v_mean;
         let e_avg = e_sum / imcs as f64;
         
-        // Store data for plotting
         energy_data.push(vec![imcs as f64, e_avg]);
         vref_data.push(vec![imcs as f64, v_ref]);
         walker_count_data.push(vec![imcs as f64, walkers.len() as f64]);
         
-        // Store walker positions at all steps
         all_walker_positions.insert(imcs, walkers.clone());
     }
     
-    // Generate exact solution
     let mut exact_solution = Vec::new();
     for i in 0..200 {
         let xmin = -6.0;
@@ -121,7 +106,6 @@ pub fn run_qmc_simulation(
         exact_solution.push(vec![x, psi]);
     }
     
-    // Prepare return data
     let mut result = HashMap::new();
     result.insert("energy".to_string(), energy_data);
     result.insert("vref".to_string(), vref_data);

@@ -2,6 +2,7 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import quantum_walk_project.walkers as qwp
+from scipy import stats as statistics
 qwp = qwp.walkersv3
 
 
@@ -23,6 +24,8 @@ def parse_args():
                         default=1, help='Time step factor')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='Plot results')
+    parser.add_argument('-e', '--equilibration', type=int, default=1000,
+                        help='Number of steps to discard')
     return parser.parse_args()
 
 
@@ -39,10 +42,12 @@ def collect_walkers_before_step(results, target_step):
 
     in_range_steps = [s for s in range(1, target_step+1)]
 
-    # Collect all walker positions
     all_walkers = []
     for step in in_range_steps:
-        walkers = np.array(results[f'walkers_{step}'])
+        try:
+            walkers = np.array(results[f'walkers_{step}'])
+        except KeyError:
+            continue
         all_walkers.extend(walkers.flatten())
 
     return np.array(all_walkers), step
@@ -50,28 +55,22 @@ def collect_walkers_before_step(results, target_step):
 
 def plot_wave_function(results, target_steps):
     """Plot wave function at specific steps"""
-    # Generate exact solution
     xmin, xmax = -6.0, 6.0
     x_exact = np.linspace(xmin, xmax, 200)
     psi_exact = np.pi**(-0.25) * np.exp(-0.5 * x_exact**2)
 
     plt.figure(figsize=(10, 6))
 
-    # Plot exact solution
     plt.plot(x_exact, psi_exact, 'k-', label='Exact')
 
-    # Plot histograms for each target step
     colors = ['b-', 'g--', 'r-.', 'm:']
     for i, step in enumerate(target_steps):
-        # Collect walker positions around target step
         walkers, step = collect_walkers_before_step(results, step)
 
-        # Calculate histogram
         if len(walkers) > 0:
             x_bins, hist = calculate_histogram(walkers)
             plt.plot(x_bins, hist, colors[i %
                      len(colors)], label=f'Step {step}')
-            # plt.bar(x_bins, hist, width=0.1, alpha=0.5, label=f'Step {step}')
 
     plt.xlabel('x')
     plt.ylabel('psi(x)')
@@ -84,19 +83,209 @@ def plot_wave_function(results, target_steps):
     plt.close()
 
 
-def plot_energy_convergence(results):
-    """Plot energy convergence"""
+def calculate_energy_statistics(energy_data, equilibration=1000, theoretical_value=0.5):
+    """Calculate energy statistics including error estimates"""
+    equilibrated_data = energy_data[energy_data[:, 0] >= equilibration, 1]
+
+    if len(equilibrated_data) == 0:
+        print("Warning: No data points after discarded period")
+        return None
+
+    mean_energy = np.mean(equilibrated_data)
+    std_dev = np.std(equilibrated_data)
+    sem = std_dev / np.sqrt(len(equilibrated_data))
+
+    ci_95 = statistics.t.interval(0.95, len(equilibrated_data)-1,
+                             loc=mean_energy,
+                             scale=sem)
+
+    abs_error = abs(mean_energy - theoretical_value)
+    rel_error = abs_error / theoretical_value * 100
+
+    autocorr = calculate_autocorrelation(equilibrated_data)
+
+    if autocorr > 0:
+        effective_samples = len(equilibrated_data) / (2 * autocorr)
+        corrected_sem = std_dev / np.sqrt(effective_samples)
+    else:
+        effective_samples = len(equilibrated_data)
+        corrected_sem = sem
+
+    corrected_ci_95 = statistics.t.interval(0.95, max(1, int(effective_samples)-1),
+                                       loc=mean_energy,
+                                       scale=corrected_sem)
+
+    return {
+        'mean': mean_energy,
+        'std_dev': std_dev,
+        'sem': sem,
+        'ci_95': ci_95,
+        'abs_error': abs_error,
+        'rel_error': rel_error,
+        'autocorr_time': autocorr,
+        'effective_samples': effective_samples,
+        'corrected_sem': corrected_sem,
+        'corrected_ci_95': corrected_ci_95,
+        'n_samples': len(equilibrated_data)
+    }
+
+
+def calculate_autocorrelation(data):
+    """Calculate autocorrelation time of energy data"""
+    data_norm = data - np.mean(data)
+
+    acf = np.correlate(data_norm, data_norm, mode='full')
+    acf = acf[len(data_norm)-1:] / (np.var(data_norm)
+                                    * np.arange(len(data_norm), 0, -1))
+
+    try:
+        autocorr_time = np.where(acf < 1/np.e)[0][0]
+    except IndexError:
+        autocorr_time = len(acf) // 10
+
+    return autocorr_time
+
+
+def plot_energy_convergence(results, equilibration=1000):
+    """Plot energy convergence with error estimates"""
     energy_data = np.array(results["energy"])
 
+    stats = calculate_energy_statistics(energy_data, equilibration)
+
+    if stats is None:
+        return
+
     plt.figure(figsize=(10, 6))
-    plt.plot(energy_data[:, 0], energy_data[:, 1], 'r-', label='Energy')
+
+    plt.plot(energy_data[:, 0], energy_data[:, 1],
+             'r-', alpha=0.5, label='Energy')
+
+    plt.axhline(y=stats['mean'], color='b', linestyle='-',
+                label=f'Mean: {stats["mean"]:.6f}')
+
+    plt.axhline(y=stats['ci_95'][0], color='b', linestyle=':',
+                label=f'95% CI: [{stats["ci_95"][0]:.6f}, {stats["ci_95"][1]:.6f}]')
+    plt.axhline(y=stats['ci_95'][1], color='b', linestyle=':')
+
     plt.axhline(y=0.5, color='k', linestyle='--', label='Exact (0.5)')
+
+    plt.axvline(x=equilibration, color='g', linestyle='--',
+                label=f'Equilibration ({equilibration} steps)')
 
     plt.xlabel('MC steps')
     plt.ylabel('Energy')
     plt.title('Quantum Monte Carlo Energy Convergence')
     plt.legend()
     plt.grid(True)
+
+    textstr = '\n'.join((
+        f'Mean Energy = {stats["mean"]:.6f}',
+        f'Std Dev = {stats["std_dev"]:.6f}',
+        f'SEM = {stats["sem"]:.6f}',
+        f'Abs Error = {stats["abs_error"]:.6f}',
+        f'Rel Error = {stats["rel_error"]:.2f}%',
+        f'Autocorr Time = {stats["autocorr_time"]}',
+        f'Effective Samples = {stats["effective_samples"]:.1f}'
+    ))
+
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    plt.text(0, 0, textstr, transform=plt.gca().transAxes,
+             fontsize=9, va='bottom', ha='right', bbox=props)
+
+    plt.show()
+    plt.close()
+
+
+def plot_energy_histogram(results, equilibration=1000):
+    """Plot histogram of energy values after equilibration"""
+    energy_data = np.array(results["energy"])
+
+    equilibrated_data = energy_data[energy_data[:, 0] >= equilibration, 1]
+
+    if len(equilibrated_data) == 0:
+        print("Warning: No data points after discarded period")
+        return
+
+    stats = calculate_energy_statistics(energy_data, equilibration)
+
+    plt.figure(figsize=(10, 6))
+
+    n, bins, patches = plt.hist(equilibrated_data, bins=30, density=True,
+                                alpha=0.7, color='skyblue')
+
+    x = np.linspace(min(equilibrated_data), max(equilibrated_data), 100)
+    plt.plot(x, statistics.norm.pdf(x, stats['mean'], stats['std_dev']),
+             'r-', linewidth=2, label='Normal Distribution Fit')
+
+    plt.axvline(x=stats['mean'], color='b', linestyle='-',
+                label=f'Mean: {stats["mean"]:.6f}')
+    plt.axvline(x=stats['ci_95'][0], color='b', linestyle=':')
+    plt.axvline(x=stats['ci_95'][1], color='b', linestyle=':',
+                label=f'95% CI: [{stats["ci_95"][0]:.6f}, {stats["ci_95"][1]:.6f}]')
+
+    plt.axvline(x=0.5, color='k', linestyle='--', label='Exact (0.5)')
+
+    plt.xlabel('Energy')
+    plt.ylabel('Probability Density')
+    plt.title('Distribution of Energy Estimates')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.show()
+    plt.close()
+
+
+def plot_energy_error_analysis(results, equilibration=1000):
+    """Plot error analysis for energy estimates"""
+    energy_data = np.array(results["energy"])
+
+    stats = calculate_energy_statistics(energy_data, equilibration)
+
+    if stats is None:
+        return
+
+    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+
+    equilibrated_data = energy_data[energy_data[:, 0] >= equilibration, 1]
+    x = energy_data[energy_data[:, 0] >= equilibration, 0]
+    running_mean = np.cumsum(equilibrated_data) / \
+        np.arange(1, len(equilibrated_data) + 1)
+
+    ax1.plot(x, running_mean, 'b-', label='Running Average')
+    ax1.axhline(y=0.5, color='k', linestyle='--', label='Exact (0.5)')
+
+    running_std = np.array([np.std(equilibrated_data[:i+1]) / np.sqrt(i+1)
+                           for i in range(len(equilibrated_data))])
+
+    ax1.fill_between(x, running_mean - 1.96 * running_std,
+                     running_mean + 1.96 * running_std,
+                     color='b', alpha=0.2, label='95% Confidence Band')
+
+    ax1.set_xlabel('MC steps')
+    ax1.set_ylabel('Running Average Energy')
+    ax1.set_title('Convergence of Energy Estimate')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    # data_norm = equilibrated_data - np.mean(equilibrated_data)
+    # acf = np.correlate(data_norm, data_norm, mode='full')
+    # acf = acf[len(data_norm)-1:] / (np.var(data_norm)
+    #                                 * np.arange(len(data_norm), 0, -1))
+
+    # max_lag = min(len(acf), 100)
+    # ax2.plot(range(max_lag), acf[:max_lag], 'r-')
+    # ax2.axhline(y=0, color='k', linestyle='-', alpha=0.3)
+    # ax2.axhline(y=1/np.e, color='k', linestyle='--',
+    #             label=f'1/e (τ = {stats["autocorr_time"]})')
+
+    # ax2.set_xlabel('Lag')
+    # ax2.set_ylabel('Autocorrelation')
+    # ax2.set_title('Energy Autocorrelation Function')
+    # ax2.legend()
+    # ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
     plt.show()
     plt.close()
 
@@ -135,56 +324,48 @@ def plot_walker_population(results):
     plt.close()
 
 
-def plot_results(energy_data, vref_data, walker_count, histograms, exact_solution, save_steps):
-    # Plot energy and Vref (first 500 steps)
-    plt.figure(figsize=(10, 6))
-    plt.plot(energy_data[:500, 0], energy_data[:500, 1],
-             'r-', label='Esum/imcs')
-    plt.plot(vref_data[:500, 0], vref_data[:500, 1], 'b--', label='Vref')
-    plt.xlabel('MC steps')
-    plt.ylabel('Energy')
-    plt.title('Quantum Monte Carlo Energy Convergence')
-    plt.legend()
-    plt.grid(True)
-    plt.ylim(-6, 6)
-    plt.show()
-    plt.close()
+def print_energy_statistics(results, equilibration=1000):
+    """Print detailed energy statistics"""
+    energy_data = np.array(results["energy"])
+    stats = calculate_energy_statistics(energy_data, equilibration)
 
-    # Plot walker distribution compared to exact solution
+    if stats is None:
+        return
 
-    plt.figure(figsize=(10, 6))
-    # Plot histograms for each save step
-    colors = ['b-', 'g--', 'm-.', 'c:']
-    for i, step in enumerate(save_steps):
-        plt.plot(histograms[step][:, 0], histograms[step][:, 1],
-                 colors[i % len(colors)], label=f'mcs={step}')
-    print(histograms)
-    plt.plot(exact_solution[:, 0], exact_solution[:, 1], 'r-', label='exact')
-    plt.xlabel('x')
-    plt.ylabel('psi(x)')
-    plt.title('Quantum Monte Carlo Walker Distribution')
-    plt.legend()
-    plt.grid(True)
-    plt.xlim(-6, 6)
-    plt.ylim(0, 0.8)
-    plt.show()
-    plt.close()
+    print("\n" + "="*50)
+    print("ENERGY STATISTICS")
+    print("="*50)
+    print(f"Number of samples: {stats['n_samples']}")
+    print(f"Steps discarded: {equilibration}")
+    print(f"Theoretical ground state energy: 0.500000")
+    print("-"*50)
+    print(f"Mean energy: {stats['mean']:.6f}")
+    print(f"Standard deviation: {stats['std_dev']:.6f}")
+    print(f"Standard error of the mean: {stats['sem']:.6f}")
+    print(f"95% confidence interval: [{
+          stats['ci_95'][0]:.6f}, {stats['ci_95'][1]:.6f}]")
+    print("-"*50)
+    print(f"Absolute error: {stats['abs_error']:.6f}")
+    print(f"Relative error: {stats['rel_error']:.2f}%")
+    print("-"*50)
+    print(f"Autocorrelation time: {stats['autocorr_time']} steps")
+    print(f"Effective number of independent samples: {
+          stats['effective_samples']:.1f}")
+    print(f"Corrected standard error: {stats['corrected_sem']:.6f}")
+    print(f"Corrected 95% confidence interval: [{
+          stats['corrected_ci_95'][0]:.6f}, {stats['corrected_ci_95'][1]:.6f}]")
+    print("="*50)
 
-    # Plot number of walkers over time
-    plt.figure(figsize=(10, 6))
-    plt.plot(walker_count[:, 0], walker_count[:, 1])
-    plt.xlabel('MC steps')
-    plt.ylabel('Number of walkers')
-    plt.title('Walker Population Over Time')
-    plt.grid(True)
-    plt.show()
-    plt.close()
+    if stats['corrected_ci_95'][0] <= 0.5 <= stats['corrected_ci_95'][1]:
+        print("✅ Theoretical value (0.5) is within the 95% confidence interval")
+    else:
+        print("❌ Theoretical value (0.5) is outside the 95% confidence interval")
+    print("="*50)
 
 
 def main():
     args = parse_args()
 
-    # Run the quantum Monte Carlo simulation
     print("Starting quantum Monte Carlo simulation...")
     results = qwp.run_qmc_simulation(
         n0=args.n0,          # Initial number of walkers
@@ -194,28 +375,19 @@ def main():
         dt_factor=args.dt_factor,  # Time step factor
     )
 
-    # Extract data
     energy_data = np.array(results["energy"])
-    # vref_data = np.array(results["vref"])
-    # walker_count = np.array(results["walker_count"])
-    # exact_solution = np.array(results["exact_solution"])
+
+    print_energy_statistics(results, args.equilibration)
 
     if args.plot:
         plot_vref_and_energy(results)
         plot_wave_function(results, args.save_steps)
-        plot_energy_convergence(results)
+        plot_energy_convergence(results, args.equilibration)
         plot_walker_population(results)
+        plot_energy_histogram(results, args.equilibration)
+        plot_energy_error_analysis(results, args.equilibration)
 
-    # Extract histograms for each save step
-    # histograms = {}
-    # for step in args.save_steps:
-    #     histograms[step] = np.array(results[f"histogram_{step}"])
-
-    # if args.plot:
-    #     plot_results(energy_data, vref_data, walker_count,
-    #                  histograms, exact_solution, args.save_steps)
-
-    # Calculate final ground state energy estimate
     final_energy = energy_data[-1, 1]
     print(f"Final ground state energy estimate: {final_energy:.6f}")
     print("Theoretical ground state energy: 0.500000")
+

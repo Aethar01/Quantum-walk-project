@@ -59,7 +59,6 @@ impl SimulationConfig {
 
     /// Run the simulation based on this configuration
     pub fn run(&self) -> Result<SimulationResult> {
-        // Configure thread pool if specified
         if self.threads > 0 {
             let _ = rayon::ThreadPoolBuilder::new()
                 .num_threads(self.threads)
@@ -71,18 +70,14 @@ impl SimulationConfig {
             None => self.simulate_walkers_parallel(),
         };
 
-        // Build frequency array of arrest steps
         let max_possible_step = self.max_steps + 1;
         let freq = self.count_arrest_frequencies(&arrest_steps, max_possible_step);
 
-        // Compute cumulative survival counts
         let survival_counts = self.compute_survival_counts(&freq);
 
-        // Perform linear regression on log of survival counts
         let (j_squared, lambda, lambda_j_squared, residual) = 
             self.analyze_survival_data(&survival_counts)?;
 
-        // Output survival data to file if specified
         if let Some(ref output_path) = self.output_path {
             self.write_output_file(output_path, &survival_counts)?;
         }
@@ -104,11 +99,9 @@ impl SimulationConfig {
                 |rng, _| {
                     let mut position = 0i32;
                     for step in 1..=self.max_steps {
-                        // Move left or right
                         let step_dir: i32 = if rng.random_bool(0.5) { 1 } else { -1 };
                         position += step_dir;
 
-                        // Check if arrested
                         if position.abs() >= self.j {
                             return Some(step);
                         }
@@ -126,11 +119,9 @@ impl SimulationConfig {
             .filter_map(|_| {
                 let mut position = 0i32;
                 for step in 1..=self.max_steps {
-                    // Move left or right
                     let step_dir: i32 = if rng.random_bool(0.5) { 1 } else { -1 };
                     position += step_dir;
 
-                    // Check if arrested
                     if position.abs() >= self.j {
                         return Some(step);
                     }
@@ -176,7 +167,6 @@ impl SimulationConfig {
         let j_squared = (self.j as f64).powi(2);
         let lambda_j_squared = lambda * j_squared;
 
-        // Theoretical value for comparison
         let theoretical = std::f64::consts::PI.powi(2) / 8.0;
         let residual = (lambda_j_squared - theoretical).abs();
 
@@ -199,7 +189,6 @@ impl SimulationConfig {
     }
 }
 
-/// Legacy function for backward compatibility
 pub fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<Option<usize>> {
     (0..num_walkers)
         .into_par_iter()
@@ -209,11 +198,9 @@ pub fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<Option<u
                 let mut position = 0i32;
                 let mut arrest_step = None;
                 for step in 1..=max_steps {
-                    // Move left or right
                     let step_dir: i32 = if rng.random_bool(0.5) { 1 } else { -1 };
                     position += step_dir;
 
-                    // Check if arrested
                     if position.abs() >= j {
                         arrest_step = Some(step);
                         break;
@@ -225,7 +212,6 @@ pub fn sim_walkers(num_walkers: usize, max_steps: usize, j: i32) -> Vec<Option<u
         .collect()
 }
 
-/// Legacy function for backward compatibility
 pub fn run(
     j: i32,
     num_walkers: usize,

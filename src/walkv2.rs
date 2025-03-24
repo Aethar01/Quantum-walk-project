@@ -115,7 +115,6 @@ pub fn run(
     max_steps: Option<usize>, 
     potential_number: Option<usize>,
 ) -> Result<(Vec<usize>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<(f64, usize)>, Vec<Vec<f64>>)> {
-    // Simulation parameters with defaults
     let h_x = h_x.unwrap_or(0.25);
     let h_tau = h_tau.unwrap_or(h_x * h_x);
     let n_walkers = num_walkers.unwrap_or(10_000);
@@ -123,13 +122,10 @@ pub fn run(
     let delta_tau_steps = 10; // Δτ = 10 * h_tau = 0.625
     let potential_number = potential_number.unwrap_or(1);
 
-    // Run simulation
     let result = run_walkers(n_walkers, max_steps, h_x, h_tau, potential_number);
     
-    // Calculate ground state energy estimates
     let energy = estimate_ground_state_energy(&result.survival_counts, delta_tau_steps, h_tau);
 
-    // Return data in the original format for backward compatibility
     Ok((
         result.survival_counts, 
         energy.values, 

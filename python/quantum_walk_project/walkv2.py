@@ -87,37 +87,25 @@ def calculate_energy_errors(results: SimulationResults, theoretical_value: float
     """
     tau_values = results.get_tau_values()
 
-    # Find index closest to requested tau
     tau_idx = np.argmin(np.abs(tau_values - tau_value))
     actual_tau = tau_values[tau_idx]
 
-    # Get energy estimate at this tau
     e0_estimate = results.e0_estimates[tau_idx]
 
-    # Calculate residual
     residual = e0_estimate - theoretical_value
 
-    # For standard error estimation, we need to bootstrap since we don't have direct access
-    # to individual walker energy estimates
-
-    # Create a window around the target tau to estimate variability
     window_size = 5
     window_start = max(0, tau_idx - window_size)
     window_end = min(len(tau_values), tau_idx + window_size + 1)
     window_estimates = results.e0_estimates_no_ln[window_start:window_end]
 
-    # Calculate standard deviation in the window
     std_dev = np.std(window_estimates)
 
-    # Estimate standard error based on number of walkers
-    # This is an approximation since we don't have direct access to individual measurements
     sem = std_dev / np.sqrt(results.active_walkers[tau_idx])
 
-    # Calculate 95% confidence interval
     ci_lower = e0_estimate - 1.96 * sem
     ci_upper = e0_estimate + 1.96 * sem
 
-    # Calculate relative error
     rel_error = abs(residual / theoretical_value) * 100
 
     return {
@@ -142,7 +130,6 @@ def bootstrap_energy_error(results: SimulationResults, tau_value: float, n_boots
     tau_idx = np.argmin(np.abs(tau_values - tau_value))
     actual_tau = tau_values[tau_idx]
 
-    # Get walker positions at this tau
     if tau_idx >= len(results.active_walkers_at_all_steps):
         print(f"Warning: Requested tau={tau_value} exceeds simulation time.")
         return None
@@ -153,7 +140,6 @@ def bootstrap_energy_error(results: SimulationResults, tau_value: float, n_boots
               actual_tau} for bootstrap analysis.")
         return None
 
-    # Calculate potential energy for each walker
     if results.params.potential == 1:  # Harmonic oscillator
         potential_energies = 0.5 * walkers**2
     elif results.params.potential == 2:  # Linear potential
@@ -161,21 +147,17 @@ def bootstrap_energy_error(results: SimulationResults, tau_value: float, n_boots
     else:
         return None
 
-    # Bootstrap resampling
     bootstrap_means = []
     n_walkers = len(walkers)
 
     for _ in range(n_bootstrap):
-        # Resample with replacement
         indices = np.random.randint(0, n_walkers, size=n_walkers)
         resampled_energies = potential_energies[indices]
         bootstrap_means.append(np.mean(resampled_energies))
 
-    # Calculate statistics from bootstrap distribution
     bootstrap_mean = np.mean(bootstrap_means)
     bootstrap_std = np.std(bootstrap_means)
 
-    # 95% confidence interval
     ci_lower = np.percentile(bootstrap_means, 2.5)
     ci_upper = np.percentile(bootstrap_means, 97.5)
 
@@ -194,12 +176,10 @@ def plot_energy_with_errors(results: SimulationResults, theoretical_value: float
     """Plot energy estimates with error bars"""
     tau_values = results.get_tau_values()
 
-    # Ensure arrays have the same length
     min_length = min(len(tau_values), len(results.e0_estimates))
     tau_values = tau_values[:min_length]
     e0_estimates = results.e0_estimates[:min_length]
 
-    # Calculate error bars at regular intervals
     n_points = min(10, len(tau_values))
     sample_indices = np.linspace(0, len(tau_values)-1, n_points, dtype=int)
 
@@ -209,13 +189,10 @@ def plot_energy_with_errors(results: SimulationResults, theoretical_value: float
         error_stats = calculate_energy_errors(results, theoretical_value, tau)
         error_bars.append(error_stats)
 
-    # Plot energy estimates with error bars
     plt.figure(figsize=(12, 7))
 
-    # Plot all estimates as a line
     plt.plot(tau_values, e0_estimates, 'b-', alpha=0.5, label='E₀ estimates')
 
-    # Plot error bars at sampled points
     error_x = [stat['tau'] for stat in error_bars]
     error_y = [stat['e0_estimate'] for stat in error_bars]
     error_yerr = [stat['sem'] for stat in error_bars]
@@ -223,11 +200,9 @@ def plot_energy_with_errors(results: SimulationResults, theoretical_value: float
     plt.errorbar(error_x, error_y, yerr=error_yerr, fmt='ro',
                  capsize=4, label='E₀ with standard error')
 
-    # Plot theoretical value
     plt.axhline(y=theoretical_value, color='g', linestyle='--',
                 label=f'Theoretical: {theoretical_value:.6f}')
 
-    # Add confidence band for selected points
     for stat in error_bars:
         plt.fill_between([stat['tau']-0.05, stat['tau']+0.05],
                          [stat['ci_lower'], stat['ci_lower']],
@@ -247,18 +222,14 @@ def plot_error_convergence(results: SimulationResults, theoretical_value: float)
     """Plot how the error in energy estimates converges with increasing tau"""
     tau_values = results.get_tau_values()
 
-    # Ensure arrays have the same length
     min_length = min(len(tau_values), len(results.e0_estimates_no_ln))
     tau_values = tau_values[:min_length]
     e0_estimates = results.e0_estimates_no_ln[:min_length]
 
-    # Calculate absolute errors
     abs_errors = np.abs(e0_estimates - theoretical_value)
 
-    # Calculate relative errors
     rel_errors = abs_errors / theoretical_value * 100
 
-    # Calculate standard errors at regular intervals
     n_points = min(10, len(tau_values))
     sample_indices = np.linspace(0, len(tau_values)-1, n_points, dtype=int)
 
@@ -268,7 +239,6 @@ def plot_error_convergence(results: SimulationResults, theoretical_value: float)
         error_stats = calculate_energy_errors(results, theoretical_value, tau)
         std_errors.append(error_stats['sem'])
 
-    # Plot error convergence
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
     # Plot absolute error
@@ -285,12 +255,10 @@ def plot_error_convergence(results: SimulationResults, theoretical_value: float)
     ax2.set_title('Relative Error Convergence')
     ax2.grid(True, alpha=0.3, which='both')
 
-    # Add standard error points to both plots
     error_x = [tau_values[idx] for idx in sample_indices]
     ax1.scatter(error_x, std_errors, color='g', marker='x',
                 label='Standard Error')
 
-    # Add legends
     ax1.legend()
     ax2.legend()
 
@@ -300,11 +268,9 @@ def plot_error_convergence(results: SimulationResults, theoretical_value: float)
 
 def print_statistics_with_errors(results: SimulationResults, theoretical_value: float, tau_value: float):
     """Print detailed statistics with error analysis at a given tau"""
-    # Get basic statistics
     error_stats = calculate_energy_errors(
         results, theoretical_value, tau_value)
 
-    # Try to get bootstrap statistics if possible
     bootstrap_stats = bootstrap_energy_error(results, tau_value)
 
     print(f"\nDetailed Statistics at τ = {error_stats['tau']:.4f}:")
@@ -316,7 +282,6 @@ def print_statistics_with_errors(results: SimulationResults, theoretical_value: 
     print(f"  95% Confidence Interval: [{
           error_stats['ci_lower']:.6f}, {error_stats['ci_upper']:.6f}]")
 
-    # Check if theoretical value is within confidence interval
     if error_stats['ci_lower'] <= theoretical_value <= error_stats['ci_upper']:
         print("  ✅ Theoretical value is within the 95% confidence interval")
     else:
@@ -324,7 +289,6 @@ def print_statistics_with_errors(results: SimulationResults, theoretical_value: 
 
     print(f"  Number of active walkers: {error_stats['active_walkers']}")
 
-    # Print bootstrap statistics if available
     if bootstrap_stats:
         print("\n  Bootstrap Analysis:")
         print(f"    Bootstrap Mean: {bootstrap_stats['bootstrap_mean']:.6f}")
@@ -333,7 +297,6 @@ def print_statistics_with_errors(results: SimulationResults, theoretical_value: 
         print(f"    Bootstrap 95% CI: [{bootstrap_stats['bootstrap_ci_lower']:.6f}, "
               f"{bootstrap_stats['bootstrap_ci_upper']:.6f}]")
 
-        # Check if theoretical value is within bootstrap confidence interval
         if (bootstrap_stats['bootstrap_ci_lower'] <= theoretical_value <=
                 bootstrap_stats['bootstrap_ci_upper']):
             print("    ✅ Theoretical value is within the bootstrap confidence interval")
@@ -353,7 +316,6 @@ def run_simulation(params: SimulationParameters) -> SimulationResults:
         )
     )
 
-    # Convert lists to numpy arrays for better handling
     return SimulationResults(
         survival_counts=np.array(survival_counts),
         e0_estimates=np.array(e0_estimates),
@@ -369,16 +331,12 @@ def find_optimal_tau(results: SimulationResults, theoretical_value: float) -> fl
     """Find the optimal tau value where energy estimate stabilizes"""
     tau_values = results.get_tau_values()
 
-    # Ensure arrays have the same length
     min_length = min(len(tau_values), len(results.e0_estimates_no_ln))
     tau_values = tau_values[:min_length]
     e0_estimates = results.e0_estimates_no_ln[:min_length]
 
-    # Calculate residuals from theoretical value
     residuals = np.abs(e0_estimates - theoretical_value)
 
-    # Find where residuals are minimized and stable
-    # Use a windowed approach to find stable regions
     window_size = min(10, len(residuals) // 5) if len(residuals) > 20 else 3
     if len(residuals) < window_size:
         return tau_values[-1] if len(tau_values) > 0 else 2.0
@@ -386,7 +344,6 @@ def find_optimal_tau(results: SimulationResults, theoretical_value: float) -> fl
     windowed_avg = np.convolve(residuals, np.ones(
         window_size)/window_size, mode='valid')
 
-    # Find the first point where residual is below average and stable
     stable_threshold = np.mean(windowed_avg) * 0.8
     stable_indices = np.where(windowed_avg < stable_threshold)[0]
 
@@ -395,7 +352,6 @@ def find_optimal_tau(results: SimulationResults, theoretical_value: float) -> fl
         optimal_tau = tau_values[optimal_idx] if optimal_idx < len(
             tau_values) else tau_values[-1]
     else:
-        # Fallback to minimum residual
         optimal_idx = np.argmin(residuals)
         optimal_tau = tau_values[optimal_idx] if optimal_idx < len(
             tau_values) else tau_values[-1]
@@ -410,7 +366,6 @@ def auto_analyze(theoretical_value: float) -> SimulationParameters:
     """
     print("Starting auto-analysis to find optimal parameters...")
 
-    # Define parameter ranges to test
     h_x_values = [0.1, 0.2, 0.25, 0.3, 0.5]
     h_tau_values = [0.01, 0.03125, 0.0625, 0.125, 0.25]
     num_walkers_values = [1000, 5000, 10000]
@@ -419,11 +374,9 @@ def auto_analyze(theoretical_value: float) -> SimulationParameters:
     best_params = None
     results_data = []
 
-    # Perform parameter sweep
     for h_x in h_x_values:
         for h_tau in h_tau_values:
             for num_walkers in num_walkers_values:
-                # Use shorter runs for the sweep
                 sweep_params = SimulationParameters(
                     h_x=h_x,
                     h_tau=h_tau,
@@ -431,11 +384,8 @@ def auto_analyze(theoretical_value: float) -> SimulationParameters:
                     max_steps=min(80, int(5 / h_tau))  # Go up to tau=5
                 )
 
-                # print(f"Testing: h_x={h_x}, h_tau={
-                #       h_tau}, walkers={num_walkers}")
                 results = run_simulation(sweep_params)
 
-                # Find optimal tau for these parameters
                 optimal_tau = find_optimal_tau(results, theoretical_value)
                 optimal_step = int(optimal_tau / h_tau)
 
@@ -443,7 +393,6 @@ def auto_analyze(theoretical_value: float) -> SimulationParameters:
                     e0_estimate = results.e0_estimates_no_ln[optimal_step]
                     residual = abs(e0_estimate - theoretical_value)
 
-                    # Store results
                     results_data.append({
                         'h_x': h_x,
                         'h_tau': h_tau,
@@ -453,29 +402,24 @@ def auto_analyze(theoretical_value: float) -> SimulationParameters:
                         'residual': residual
                     })
 
-                    # Update best parameters
                     if residual < best_residual:
                         best_residual = residual
                         best_params = SimulationParameters(
                             h_x=h_x,
                             h_tau=h_tau,
                             num_walkers=num_walkers,
-                            # Extend to tau=10 for final run
                             max_steps=min(200, int(10 / h_tau)),
                             potential=1
                         )
 
-    # Analyze results
     results_array = np.array([(d['h_x'], d['h_tau'], d['num_walkers'], d['residual'])
                               for d in results_data],
                              dtype=[('h_x', float), ('h_tau', float),
                                     ('num_walkers', int), ('residual', float)])
 
-    # Find parameters that give good results (within 20% of best)
     good_threshold = best_residual * 1.2
     good_results = [r for r in results_data if r['residual'] <= good_threshold]
 
-    # Recommend parameters based on accuracy and efficiency
     if best_params:
         print("\nAuto-analysis results:")
         print("Best parameters found:")
@@ -484,9 +428,7 @@ def auto_analyze(theoretical_value: float) -> SimulationParameters:
         print(f"  num_walkers: {best_params.num_walkers}")
         print(f"  residual: {best_residual:.6f}")
 
-        # Also recommend most efficient parameters within acceptable accuracy
         if len(good_results) > 1:
-            # Sort by efficiency (fewer walkers, larger step sizes → faster)
             sorted_good = sorted(good_results,
                                  key=lambda r: (r['num_walkers'], -r['h_x'], -r['h_tau']))
             efficient = sorted_good[0]
@@ -505,28 +447,24 @@ def plot_survival_and_energy(results: SimulationResults):
     tau_values = results.get_tau_values()
     survival_prob = results.get_survival_probabilities()
 
-    # Ensure tau_values and e0_estimates have the same length
     min_length = min(len(tau_values), len(results.e0_estimates))
     tau_values_plot = tau_values[:min_length]
     e0_estimates_plot = results.e0_estimates[:min_length]
 
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
-    # Plot survival probability
     ax1.plot(tau_values[:len(survival_prob)], survival_prob,
              label='Survival probability', color='tab:blue')
     ax1.set_xlabel('Time (τ)')
     ax1.set_ylabel('Survival probability', color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
-    # Plot energy estimates
     ax2 = ax1.twinx()
     ax2.scatter(tau_values_plot, e0_estimates_plot, label='E₀ estimate',
                 color='tab:red', marker='x', s=15, alpha=0.7)
     ax2.set_ylabel('E₀ estimate', color='tab:red')
     ax2.tick_params(axis='y', labelcolor='tab:red')
 
-    # Combine legends
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines1 + lines2, labels1 + labels2, loc='best')
@@ -541,7 +479,6 @@ def plot_energy_residuals(results: SimulationResults, theoretical_value: float):
     """Plot residuals of energy estimates from theoretical value"""
     tau_values = results.get_tau_values()
 
-    # Ensure tau_values and e0_estimates_no_ln have the same length
     min_length = min(len(tau_values), len(results.e0_estimates_no_ln))
     tau_values_plot = tau_values[:min_length]
     residuals = results.e0_estimates_no_ln[:min_length] - theoretical_value
@@ -559,7 +496,6 @@ def plot_energy_residuals(results: SimulationResults, theoretical_value: float):
 
 def plot_wave_function(results: SimulationResults, tau_value: float):
     """Plot ground state wave function at given tau"""
-    # Convert tau to step index
     target_step = int(tau_value / results.params.h_tau)
 
     if target_step >= len(results.active_walkers_at_all_steps):
@@ -573,11 +509,9 @@ def plot_wave_function(results: SimulationResults, tau_value: float):
         print(f"Error: No walkers available at tau={tau_value}")
         return
 
-    # Create histogram bins
     h_x = results.params.h_x
     bins = np.arange(-3, 3, 2*h_x)
 
-    # Calculate wave function
     wave_func = np.zeros(len(bins))
     for i, bin_edge in enumerate(bins):
         values_in_bin = walkers_at_tau[
@@ -586,17 +520,14 @@ def plot_wave_function(results: SimulationResults, tau_value: float):
         ]
         wave_func[i] = len(values_in_bin) / (len(walkers_at_tau) * 2*h_x)
 
-    # Verify normalization
     norm_sum = np.sum(wave_func * 2*h_x)
     if not math.isclose(norm_sum, 1, abs_tol=1e-2):
         print(f"Warning: Sum of probabilities is {norm_sum}, not 1.")
 
-    # Plot wave function
     plt.figure(figsize=(10, 6))
     plt.bar(bins, wave_func, width=2*h_x, align='edge', alpha=0.6,
             label=f'Simulation (τ={tau_value})')
 
-    # Plot exact ground state wave function
     x = np.linspace(-3, 3, 300)
     if results.params.potential == 1:  # Harmonic oscillator
         psi_0 = 1/((2*np.pi)**0.5) * np.exp(-0.5 * x**2)
@@ -615,7 +546,6 @@ def plot_wave_function(results: SimulationResults, tau_value: float):
 
 def plot_probability_density(results: SimulationResults, tau_value: float):
     """Plot probability density |ψ₀(x)|² at given tau"""
-    # Convert tau to step index
     target_step = int(tau_value / results.params.h_tau)
 
     if target_step >= len(results.active_walkers_at_all_steps):
@@ -629,11 +559,9 @@ def plot_probability_density(results: SimulationResults, tau_value: float):
         print(f"Error: No walkers available at tau={tau_value}")
         return
 
-    # Create histogram bins
     h_x = results.params.h_x
     bins = np.arange(-3, 3, 2*h_x)
 
-    # Calculate probability density
     prob_density = np.zeros(len(bins))
     for i, bin_edge in enumerate(bins):
         values_in_bin = walkers_at_tau[
@@ -642,17 +570,14 @@ def plot_probability_density(results: SimulationResults, tau_value: float):
         ]
         prob_density[i] = len(values_in_bin) / (len(walkers_at_tau) * 2*h_x)
 
-    # Verify normalization
     norm_sum = np.sum(prob_density * 2*h_x)
     if not math.isclose(norm_sum, 1, abs_tol=1e-2):
         print(f"Warning: Sum of probabilities is {norm_sum}, not 1.")
 
-    # Plot probability density
     plt.figure(figsize=(10, 6))
     plt.bar(bins, prob_density, width=2*h_x, align='edge', alpha=0.6,
             label=f'Simulation (τ={tau_value})')
 
-    # Plot exact ground state probability density
     x = np.linspace(-3, 3, 300)
     if results.params.potential == 1:  # Harmonic oscillator
         psi_0_sq = 1/np.sqrt(np.pi) * np.exp(-x**2)
@@ -673,13 +598,11 @@ def print_statistics(results: SimulationResults, theoretical_value: float, optim
     """Print statistics about the simulation results"""
     tau_values = results.get_tau_values()
 
-    # Find energy estimate at optimal tau
     optimal_idx = np.argmin(np.abs(tau_values - optimal_tau))
     e0_at_optimal = results.e0_estimates[optimal_idx]
     e0_no_ln_at_optimal = results.e0_estimates_no_ln[optimal_idx]
     residual = e0_no_ln_at_optimal - theoretical_value
 
-    # Calculate statistics from estimates near optimal tau
     window_start = max(0, optimal_idx - 5)
     window_end = min(len(tau_values), optimal_idx + 6)
     window_estimates = results.e0_estimates_no_ln[window_start:window_end]
@@ -697,7 +620,6 @@ def print_statistics(results: SimulationResults, theoretical_value: float, optim
     print(f"\tMean E₀ estimate near τ={optimal_tau:.2f}: {mean_e0:.6f}")
     print(f"\tStandard deviation of E₀ near τ={optimal_tau:.2f}: {std_e0:.6f}")
 
-    # Calculate convergence rate
     later_idx = min(len(tau_values) - 1, optimal_idx + 10)
     if later_idx > optimal_idx:
         later_residual = abs(
@@ -708,10 +630,8 @@ def print_statistics(results: SimulationResults, theoretical_value: float, optim
 
 
 def main():
-    # Parse arguments
     params, do_plot, do_auto_analyze = parse_arguments()
 
-    # Set theoretical value based on potential type
     if params.potential == 1:  # Harmonic oscillator
         theoretical_value = 0.5  # Ground state energy of harmonic oscillator
     elif params.potential == 2:  # Linear potential
@@ -720,29 +640,23 @@ def main():
         theoretical_value = 0.0
         print(f"Warning: Unknown potential type {params.potential}")
 
-    # Run auto-analysis if requested
     if do_auto_analyze:
         optimal_params = auto_analyze(theoretical_value)
         params = optimal_params
 
-    # Run simulation
     results = run_simulation(params)
 
-    # Find optimal tau
     optimal_tau = find_optimal_tau(results, theoretical_value)
 
-    # Generate plots if requested
     if do_plot:
         plot_survival_and_energy(results)
         plot_energy_residuals(results, theoretical_value)
         plot_wave_function(results, 2.0)  # Plot at tau=2
         plot_probability_density(results, 4.0)  # Plot at tau=4
 
-        # New error analysis plots
         plot_energy_with_errors(results, theoretical_value)
         plot_error_convergence(results, theoretical_value)
 
-    # Print statistics with error analysis
     print_statistics_with_errors(results, theoretical_value, optimal_tau)
     print_statistics_with_errors(results, theoretical_value, 2.0)
     print_statistics_with_errors(results, theoretical_value, 4.0)
