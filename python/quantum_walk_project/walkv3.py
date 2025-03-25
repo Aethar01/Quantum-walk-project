@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import quantum_walk_project.walkers as qwp
 from scipy import stats as statistics
+import math
 qwp = qwp.walkersv3
 
 
@@ -12,16 +13,14 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-n0', '--n0', type=int, default=50,
                         help='Initial number of walkers')
-    parser.add_argument('-mcs', '--mcs', type=int, default=50000,
+    parser.add_argument('-ms', '--max_steps', type=int, default=50000,
                         help='Number of Monte Carlo steps')
-    parser.add_argument('-ds', '--ds', type=float,
+    parser.add_argument('-h_x', '--h_x', type=float,
                         default=0.1, help='Step length')
     parser.add_argument('-w0', '--w0', type=float, default=2.0,
                         help='Initial distribution width')
     parser.add_argument('-ss', '--save_steps', type=int, nargs='+',
                         default=[500, 50000], help='Steps at which to save histograms')
-    parser.add_argument('-dt', '--dt_factor', type=float,
-                        default=1, help='Time step factor')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='Plot results')
     parser.add_argument('-e', '--equilibration', type=int, default=1000,
@@ -29,11 +28,13 @@ def parse_args():
     return parser.parse_args()
 
 
-def calculate_histogram(walker_positions, xmin=-6.0, xmax=6.0, nbins=100):
+def calculate_histogram(walker_positions, xmin=-6.0, xmax=6.0, nbins=40):
     """Calculate histogram from walker positions"""
     hist, bin_edges = np.histogram(
-        walker_positions, bins=nbins, range=(xmin, xmax), density=True)
+        walker_positions, bins=nbins, range=(xmin, xmax), density=1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    # bin_centers = bin_centers[hist > 0]
+    # hist = hist[hist > 0]
     return bin_centers, hist
 
 
@@ -57,11 +58,12 @@ def plot_wave_function(results, target_steps):
     """Plot wave function at specific steps"""
     xmin, xmax = -6.0, 6.0
     x_exact = np.linspace(xmin, xmax, 200)
+    # psi_exact = np.pi**(-0.25) * np.exp(-0.5 * x_exact**2)
     psi_exact = np.pi**(-0.25) * np.exp(-0.5 * x_exact**2)
 
     plt.figure(figsize=(10, 6))
 
-    plt.plot(x_exact, psi_exact, 'k-', label='Exact')
+    plt.plot(x_exact, psi_exact, 'k-', label='Theoretical')
 
     colors = ['b-', 'g--', 'r-.', 'm:']
     for i, step in enumerate(target_steps):
@@ -69,8 +71,12 @@ def plot_wave_function(results, target_steps):
 
         if len(walkers) > 0:
             x_bins, hist = calculate_histogram(walkers)
-            plt.plot(x_bins, hist, colors[i %
-                     len(colors)], label=f'Step {step}')
+            norm_sum = np.sum(hist) * (x_bins[1] - x_bins[0])
+            if not math.isclose(norm_sum, 1, abs_tol=1e-2):
+                print(f"Warning: Sum of probabilities is {norm_sum}, not 1.")
+            plt.bar(x_bins, hist, width=0.1, alpha=0.5, color=colors[i % len(
+                colors)][0], label=f'Step {len(walkers)}')
+            plt.plot(x_bins, hist, colors[i % len(colors)], alpha=0.5)
 
     plt.xlabel('x')
     plt.ylabel('psi(x)')
@@ -78,7 +84,7 @@ def plot_wave_function(results, target_steps):
     plt.legend()
     plt.grid(True)
     plt.xlim(-4, 4)
-    plt.ylim(0, 0.8)
+    # plt.ylim(0, 0.8)
     plt.show()
     plt.close()
 
@@ -96,8 +102,8 @@ def calculate_energy_statistics(energy_data, equilibration=1000, theoretical_val
     sem = std_dev / np.sqrt(len(equilibrated_data))
 
     ci_95 = statistics.t.interval(0.95, len(equilibrated_data)-1,
-                             loc=mean_energy,
-                             scale=sem)
+                                  loc=mean_energy,
+                                  scale=sem)
 
     abs_error = abs(mean_energy - theoretical_value)
     rel_error = abs_error / theoretical_value * 100
@@ -112,8 +118,8 @@ def calculate_energy_statistics(energy_data, equilibration=1000, theoretical_val
         corrected_sem = sem
 
     corrected_ci_95 = statistics.t.interval(0.95, max(1, int(effective_samples)-1),
-                                       loc=mean_energy,
-                                       scale=corrected_sem)
+                                            loc=mean_energy,
+                                            scale=corrected_sem)
 
     return {
         'mean': mean_energy,
@@ -189,7 +195,7 @@ def plot_energy_convergence(results, equilibration=1000):
     ))
 
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-    plt.text(0, 0, textstr, transform=plt.gca().transAxes,
+    plt.text(0.95, 0.07, textstr, transform=plt.gca().transAxes,
              fontsize=9, va='bottom', ha='right', bbox=props)
 
     plt.show()
@@ -369,10 +375,9 @@ def main():
     print("Starting quantum Monte Carlo simulation...")
     results = qwp.run_qmc_simulation(
         n0=args.n0,          # Initial number of walkers
-        mcs=args.mcs,      # Number of Monte Carlo steps
-        ds=args.ds,         # Step length
+        max_steps=args.max_steps,      # Number of Monte Carlo steps
+        h_x=args.h_x,         # Step length
         w0=args.w0,         # Initial distribution width
-        dt_factor=args.dt_factor,  # Time step factor
     )
 
     energy_data = np.array(results["energy"])
@@ -390,4 +395,3 @@ def main():
     final_energy = energy_data[-1, 1]
     print(f"Final ground state energy estimate: {final_energy:.6f}")
     print("Theoretical ground state energy: 0.500000")
-

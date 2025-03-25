@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 
-/// Harmonic oscillator potential V(x) = x²/2
 fn potential(x: f64) -> f64 {
     0.5 * x * x
 }
@@ -11,12 +10,11 @@ fn potential(x: f64) -> f64 {
 #[pyfunction]
 pub fn run_qmc_simulation(
     n0: usize,
-    mcs: usize,
-    ds: f64,
+    max_steps: usize,
+    h_x: f64,
     w0: f64,
-    dt_factor: usize,
 ) -> PyResult<HashMap<String, Vec<Vec<f64>>>> {
-    let dt: f64 = ds * ds / dt_factor as f64;
+    let dt: f64 = h_x * h_x;
     
     let mut rng = rand::rng();
     
@@ -32,24 +30,23 @@ pub fn run_qmc_simulation(
         .collect();
     
     let mut e_sum: f64 = 0.0;
-    let mut v_ref: f64 = 0.0;
     let mut energy_data = Vec::new();
     let mut vref_data = Vec::new();
     let mut walker_count_data = Vec::new();
     
     let mut all_walker_positions: HashMap<usize, Vec<f64>> = HashMap::new();
     
-    v_ref = walkers.iter().map(|&x| potential(x)).sum::<f64>() / walkers.len() as f64;
+    let mut v_ref = walkers.iter().map(|&x| potential(x)).sum::<f64>() / walkers.len() as f64;
     
-    for imcs in 1..=mcs {
+    for imcs in 1..=max_steps {
         let n_before = walkers.len();
         
         let mut i = 0;
         while i < walkers.len() {
             if rng.random::<bool>() {
-                walkers[i] += ds;
+                walkers[i] += h_x;
             } else {
-                walkers[i] -= ds;
+                walkers[i] -= h_x;
             }
             
             let v = potential(walkers[i]);
@@ -72,11 +69,7 @@ pub fn run_qmc_simulation(
             break;
         }
         
-        let v_mean = if walkers.is_empty() {
-            0.5
-        } else {
-            walkers.iter().map(|&x| potential(x)).sum::<f64>() / walkers.len() as f64
-        };
+        let v_mean = walkers.iter().map(|&x| potential(x)).sum::<f64>() / walkers.len() as f64;
 
         let damping: f64 = 0.01;
         
@@ -112,7 +105,7 @@ pub fn run_qmc_simulation(
     result.insert("walker_count".to_string(), walker_count_data);
     result.insert("exact_solution".to_string(), exact_solution);
 
-    for i in 1..=mcs {
+    for i in 1..=max_steps {
         if let Some(positions) = all_walker_positions.get(&i) {
             let positions_vec: Vec<Vec<f64>> = positions.iter().map(|&x| vec![x]).collect();
             result.insert(format!("walkers_{}", i), positions_vec);

@@ -42,22 +42,21 @@ class SimulationResults:
 def parse_arguments() -> SimulationParameters:
     """Parse command line arguments and return parameters"""
     parser = argparse.ArgumentParser(
-        description="Quantum Walker Simulation (v2)")
+        description="Quantum Walker Simulation (v2)",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-h_x', '--h_x', type=float, default=0.25,
-                        help='Step size in x direction (default=0.25)')
-    parser.add_argument('-h_tau', '--h_tau', type=float, default=0.0625,
-                        help='Step size in tau direction (default=0.0625)')
+                        help='Step size in x direction')
     parser.add_argument('-nw', '--num_walkers', type=int,
-                        default=10_000, help='Number of walkers (default=10_000)')
+                        default=10_000, help='Number of walkers')
     parser.add_argument('-ms', '--max_steps', type=int, default=96,
-                        help='Maximum number of steps per walk (default=80)')
+                        help='Maximum number of steps per walk 80')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='Plot the results')
     parser.add_argument('-mt', '--max_tau', type=float,
                         help='Maximum of tau (auto-calculates and overrides max_steps)')
     parser.add_argument('-pot', '--potential', type=int, default=1,
-                        help='Potential type: 1=0.5x^2, 2=x, (default=1)')
+                        help='Potential type: 1=0.5x^2, 2=x')
     parser.add_argument('-a', '--auto_analyze', action='store_true',
                         help='Automatically analyze optimal parameters')
     parser.add_argument('-v', '--version', action='version',
@@ -65,9 +64,11 @@ def parse_arguments() -> SimulationParameters:
 
     args = parser.parse_args()
 
+    h_tau = args.h_x ** 2
+
     params = SimulationParameters(
         h_x=args.h_x,
-        h_tau=args.h_tau,
+        h_tau=h_tau,
         num_walkers=args.num_walkers,
         max_steps=args.max_steps,
         max_tau=args.max_tau,
@@ -124,7 +125,6 @@ def calculate_energy_errors(results: SimulationResults, theoretical_value: float
 def bootstrap_energy_error(results: SimulationResults, tau_value: float, n_bootstrap=1000):
     """
     Perform bootstrap resampling to estimate error on energy at a given tau.
-    This is more accurate than the window-based approach when we have access to walker positions.
     """
     tau_values = results.get_tau_values()
     tau_idx = np.argmin(np.abs(tau_values - tau_value))
@@ -530,7 +530,7 @@ def plot_wave_function(results: SimulationResults, tau_value: float):
 
     x = np.linspace(-3, 3, 300)
     if results.params.potential == 1:  # Harmonic oscillator
-        psi_0 = 1/((2*np.pi)**0.5) * np.exp(-0.5 * x**2)
+        psi_0 = np.pi ** -0.25 * np.exp(-x**2/2)
         plt.plot(x, psi_0, color='red', label='Exact ψ₀(x)')
     elif results.params.potential == 2:  # Linear potential
         pass
@@ -580,7 +580,7 @@ def plot_probability_density(results: SimulationResults, tau_value: float):
 
     x = np.linspace(-3, 3, 300)
     if results.params.potential == 1:  # Harmonic oscillator
-        psi_0_sq = 1/np.sqrt(np.pi) * np.exp(-x**2)
+        psi_0_sq = np.pi ** -0.5 * np.exp(-x**2)
         plt.plot(x, psi_0_sq, color='red', label='Exact |ψ₀(x)|²')
     elif results.params.potential == 2:  # Linear potential
         pass
