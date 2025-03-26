@@ -33,9 +33,8 @@ def calculate_histogram(walker_positions, xmin=-6.0, xmax=6.0, nbins=40):
     hist, bin_edges = np.histogram(
         walker_positions, bins=nbins, range=(xmin, xmax), density=1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    # bin_centers = bin_centers[hist > 0]
-    # hist = hist[hist > 0]
-    return bin_centers, hist
+    bin_width = bin_edges[1] - bin_edges[0]
+    return bin_centers, hist, bin_width
 
 
 def collect_walkers_before_step(results, target_step):
@@ -59,7 +58,7 @@ def plot_wave_function(results, target_steps):
     xmin, xmax = -6.0, 6.0
     x_exact = np.linspace(xmin, xmax, 200)
     # psi_exact = np.pi**(-0.25) * np.exp(-0.5 * x_exact**2)
-    psi_exact = np.pi**(-0.25) * np.exp(-0.5 * x_exact**2)
+    psi_exact = (2*np.pi)**(-0.5) * np.exp(-0.5 * x_exact**2)
 
     plt.figure(figsize=(10, 6))
 
@@ -70,11 +69,11 @@ def plot_wave_function(results, target_steps):
         walkers, step = collect_walkers_before_step(results, step)
 
         if len(walkers) > 0:
-            x_bins, hist = calculate_histogram(walkers)
+            x_bins, hist, bin_width = calculate_histogram(walkers)
             norm_sum = np.sum(hist) * (x_bins[1] - x_bins[0])
             if not math.isclose(norm_sum, 1, abs_tol=1e-2):
                 print(f"Warning: Sum of probabilities is {norm_sum}, not 1.")
-            plt.bar(x_bins, hist, width=0.1, alpha=0.5, color=colors[i % len(
+            plt.bar(x_bins, hist, width=bin_width, alpha=0.5, color=colors[i % len(
                 colors)][0], label=f'Step {len(walkers)}')
             plt.plot(x_bins, hist, colors[i % len(colors)], alpha=0.5)
 
@@ -173,7 +172,7 @@ def plot_energy_convergence(results, equilibration=1000):
                 label=f'95% CI: [{stats["ci_95"][0]:.6f}, {stats["ci_95"][1]:.6f}]')
     plt.axhline(y=stats['ci_95'][1], color='b', linestyle=':')
 
-    plt.axhline(y=0.5, color='k', linestyle='--', label='Exact (0.5)')
+    plt.axhline(y=0.5, color='k', linestyle='--', label='Theoretical (0.5)')
 
     plt.axvline(x=equilibration, color='g', linestyle='--',
                 label=f'Equilibration ({equilibration} steps)')
@@ -229,7 +228,7 @@ def plot_energy_histogram(results, equilibration=1000):
     plt.axvline(x=stats['ci_95'][1], color='b', linestyle=':',
                 label=f'95% CI: [{stats["ci_95"][0]:.6f}, {stats["ci_95"][1]:.6f}]')
 
-    plt.axvline(x=0.5, color='k', linestyle='--', label='Exact (0.5)')
+    plt.axvline(x=0.5, color='k', linestyle='--', label='Theoretical (0.5)')
 
     plt.xlabel('Energy')
     plt.ylabel('Probability Density')
@@ -259,7 +258,7 @@ def plot_energy_error_analysis(results, equilibration=1000):
         np.arange(1, len(equilibrated_data) + 1)
 
     ax1.plot(x, running_mean, 'b-', label='Running Average')
-    ax1.axhline(y=0.5, color='k', linestyle='--', label='Exact (0.5)')
+    ax1.axhline(y=0.5, color='k', linestyle='--', label='Theoretical (0.5)')
 
     running_std = np.array([np.std(equilibrated_data[:i+1]) / np.sqrt(i+1)
                            for i in range(len(equilibrated_data))])
@@ -303,10 +302,10 @@ def plot_vref_and_energy(results):
 
     plt.figure(figsize=(10, 6))
     plt.plot(energy_data[:500, 0], energy_data[:500, 1],
-             'r-', label='Esum/imcs')
+             'r-', label='Mean Potential')
     plt.plot(vref_data[:500, 0], vref_data[:500, 1], 'b--', label='Vref')
 
-    plt.xlabel('MC steps')
+    plt.xlabel('Steps')
     plt.ylabel('Energy')
     plt.title('Quantum Monte Carlo Energy and Vref')
     plt.legend()
