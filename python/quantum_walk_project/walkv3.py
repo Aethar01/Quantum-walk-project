@@ -4,6 +4,8 @@ import numpy as np
 import quantum_walk_project.walkers as qwp
 from scipy import stats as statistics
 import math
+import os
+import time
 qwp = qwp.walkersv3
 
 
@@ -23,6 +25,8 @@ def parse_args():
                         default=[500, 50000], help='Steps at which to save histograms')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='Plot results')
+    parser.add_argument('-spd', '--save_plots', type=str, default=None,
+                        help='Save plots to dir')
     parser.add_argument('-e', '--equilibration', type=int, default=1000,
                         help='Number of steps to discard')
     return parser.parse_args()
@@ -53,7 +57,7 @@ def collect_walkers_before_step(results, target_step):
     return np.array(all_walkers), step
 
 
-def plot_wave_function(results, target_steps):
+def plot_wave_function(results, target_steps, save_dir=None):
     """Plot wave function at specific steps"""
     xmin, xmax = -6.0, 6.0
     x_exact = np.linspace(xmin, xmax, 200)
@@ -84,7 +88,9 @@ def plot_wave_function(results, target_steps):
     plt.grid(True)
     plt.xlim(-4, 4)
     # plt.ylim(0, 0.8)
-    plt.show()
+    # plt.show()
+    if save_dir:
+        plt.savefig(f'{save_dir}/wave_function.pgf')
     plt.close()
 
 
@@ -151,7 +157,7 @@ def calculate_autocorrelation(data):
     return autocorr_time
 
 
-def plot_energy_convergence(results, equilibration=1000):
+def plot_energy_convergence(results, equilibration=1000, save_dir=None):
     """Plot energy convergence with error estimates"""
     energy_data = np.array(results["energy"])
 
@@ -198,10 +204,12 @@ def plot_energy_convergence(results, equilibration=1000):
              fontsize=9, va='bottom', ha='right', bbox=props)
 
     plt.show()
+    if save_dir:
+        plt.savefig(f'{save_dir}/energy_convergence.pgf')
     plt.close()
 
 
-def plot_energy_histogram(results, equilibration=1000):
+def plot_energy_histogram(results, equilibration=1000, save_dir=None):
     """Plot histogram of energy values after equilibration"""
     energy_data = np.array(results["energy"])
 
@@ -235,12 +243,13 @@ def plot_energy_histogram(results, equilibration=1000):
     plt.title('Distribution of Energy Estimates')
     plt.legend()
     plt.grid(True, alpha=0.3)
-
     plt.show()
+    if save_dir:
+        plt.savefig(f'{save_dir}/energy_histogram.pgf')
     plt.close()
 
 
-def plot_energy_error_analysis(results, equilibration=1000):
+def plot_energy_error_analysis(results, equilibration=1000, save_dir=None):
     """Plot error analysis for energy estimates"""
     energy_data = np.array(results["energy"])
 
@@ -292,10 +301,12 @@ def plot_energy_error_analysis(results, equilibration=1000):
 
     plt.tight_layout()
     plt.show()
+    if save_dir:
+        plt.savefig(f'{save_dir}/energy_error_analysis.pgf')
     plt.close()
 
 
-def plot_vref_and_energy(results):
+def plot_vref_and_energy(results, save_dir=None):
     """Plot reference potential and energy"""
     energy_data = np.array(results["energy"])
     vref_data = np.array(results["vref"])
@@ -311,10 +322,12 @@ def plot_vref_and_energy(results):
     plt.legend()
     plt.grid(True)
     plt.show()
+    if save_dir:
+        plt.savefig(f'{save_dir}/energy_vref.pgf')
     plt.close()
 
 
-def plot_walker_population(results):
+def plot_walker_population(results, save_dir=None):
     """Plot walker population over time"""
     walker_data = np.array(results["walker_count"])
 
@@ -326,6 +339,8 @@ def plot_walker_population(results):
     plt.title('Walker Population Over Time')
     plt.grid(True)
     plt.show()
+    if save_dir:
+        plt.savefig(f'{save_dir}/walker_population.pgf')
     plt.close()
 
 
@@ -371,25 +386,42 @@ def print_energy_statistics(results, equilibration=1000):
 def main():
     args = parse_args()
 
+    if args.plot and not args.save_plots:
+        print("Warning: No directory specified for saving plots, plots will be displayed only.")
+
+    if args.save_plots:
+        if not os.path.exists(args.save_plots):
+            print("Error: Directory does not exist.")
+            print("Plots will be displayed only.")
+            args.save_plots = None
+        else:
+            plt.rcParams.update({
+                "text.usetex": True,
+                "pgf.rcfonts": False,
+                "pgf.texsystem": "pdflatex",
+            })
+
     print("Starting quantum Monte Carlo simulation...")
+    time_start = time.time()
     results = qwp.run_qmc_simulation(
         n0=args.n0,          # Initial number of walkers
         max_steps=args.max_steps,      # Number of Monte Carlo steps
         h_x=args.h_x,         # Step length
         w0=args.w0,         # Initial distribution width
     )
+    print(f"Simulation complete. Elapsed time: {time.time() - time_start:.2f}s")
 
     energy_data = np.array(results["energy"])
 
     print_energy_statistics(results, args.equilibration)
 
     if args.plot:
-        plot_vref_and_energy(results)
-        plot_wave_function(results, args.save_steps)
-        plot_energy_convergence(results, args.equilibration)
-        plot_walker_population(results)
-        plot_energy_histogram(results, args.equilibration)
-        plot_energy_error_analysis(results, args.equilibration)
+        plot_vref_and_energy(results, args.save_plots)
+        plot_wave_function(results, args.save_steps, args.save_plots)
+        plot_energy_convergence(results, args.equilibration, args.save_plots)
+        plot_walker_population(results, args.save_plots)
+        plot_energy_histogram(results, args.equilibration, args.save_plots)
+        plot_energy_error_analysis(results, args.equilibration, args.save_plots)
 
     final_energy = energy_data[-1, 1]
     print(f"Final ground state energy estimate: {final_energy:.6f}")
