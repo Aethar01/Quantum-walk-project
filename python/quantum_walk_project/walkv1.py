@@ -1,6 +1,7 @@
 import argparse
 import math
 from typing import Tuple
+import os
 
 import numpy as np
 import pandas as pd
@@ -68,6 +69,7 @@ def parse_arguments():
                         help='Number of runs to analyse')
     parser.add_argument('-p', '--plot', action='store_true',
                         help='Plot the results')
+    parser.add_argument('-sd', '--save_dir', type=str, default=None, help='Directory to save plots')
     parser.add_argument('-pb', '--progressbar',
                         action='store_true', help='Display progress bar')
     parser.add_argument('-v', '--version', action='version',
@@ -160,15 +162,15 @@ def auto_analyse(df: pd.DataFrame, theoretical: float) -> Tuple[SimulationParame
     return params, good_results
 
 
-def plot_results(df: pd.DataFrame, theoretical: float):
+def plot_results(df: pd.DataFrame, theoretical: float, args):
     """Generate plots to visualize the simulation results."""
-    fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+    fig, ax = plt.subplots(2, 2, figsize=(4, 3))
     fig.suptitle('Parameter Impact on Residual')
 
     # J vs Residual
     sns_plot1 = ax[0, 0]
     sns_plot1.scatter(df['j'], df['residual'], alpha=0.7)
-    sns_plot1.set_xlabel('J (Lattice Size)')
+    sns_plot1.set_xlabel('L/2 (Lattice Size)')
     sns_plot1.set_ylabel('Residual')
     sns_plot1.grid(True, alpha=0.3)
 
@@ -186,40 +188,50 @@ def plot_results(df: pd.DataFrame, theoretical: float):
     sns_plot3.set_ylabel('Residual')
     sns_plot3.grid(True, alpha=0.3)
 
-    # J² vs Residual
+    # L/2² vs Residual
     sns_plot4 = ax[1, 1]
     sns_plot4.scatter(df['j_sq'], df['residual'], alpha=0.7)
-    sns_plot4.set_xlabel('J²')
+    sns_plot4.set_xlabel('$L/2^2$')
     sns_plot4.set_ylabel('Residual')
     sns_plot4.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.show()
 
-    # Lambda J² histogram with theoretical value and error bars
-    plt.figure(figsize=(10, 6))
+    if args.plot:
+        plt.show()
+
+    if args.save_dir:
+        plt.savefig(f'{args.save_dir}/analysis.pgf')
+    plt.close()
+
+    # Lambda L/2² histogram with theoretical value and error bars
+    plt.figure(figsize=(4, 3))
 
     error_stats = calculate_errors(df, theoretical)
     mean_value = error_stats['mean']
 
-    plt.hist(df['lambda_j_sq'], bins=50, alpha=0.7, label='Simulated λJ²')
+    plt.hist(df['lambda_j_sq'], bins=50, alpha=0.7, label='Simulated $\\lambda (L/2)^2$')
     plt.axvline(x=theoretical, color='red', linestyle='--',
-                linewidth=2, label=f'Theoretical: π²/8 = {theoretical:.6f}')
+                linewidth=1, label=f'Theoretical: $\\pi^2/8$ = {theoretical:.6f}')
     plt.axvline(x=mean_value, color='green', linestyle='-',
-                linewidth=2, label=f'Mean: {mean_value:.6f}')
+                linewidth=1, label=f'Mean: {mean_value:.6f}')
 
     plt.axvspan(error_stats['ci_lower'], error_stats['ci_upper'],
                 alpha=0.2, color='green', label='95% Confidence Interval')
 
-    plt.xlabel('λJ²')
+    plt.xlabel('$\\lambda (L/2)^2$')
     plt.ylabel('Frequency')
     plt.grid(True, alpha=0.3)
     plt.legend()
-    plt.title('Distribution of λJ² Values with Error Analysis')
-    plt.show()
+    # plt.title('Distribution of λL/2² Values with Error Analysis')
+    if args.save_dir:
+        plt.savefig(f'{args.save_dir}/histogram.pgf')
+    if args.plot:
+        plt.show()
+    plt.close()
 
     if len(df) > 10:  # Only if we have enough data points
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(4, 3))
 
         df_sorted = df.sort_values('num_walkers')
 
@@ -235,18 +247,21 @@ def plot_results(df: pd.DataFrame, theoretical: float):
             running_ci_upper.append(stats['ci_upper'])
 
         x = range(1, len(df_sorted) + 1)
-        plt.plot(x, running_means, 'b-', label='Running Mean')
+        plt.plot(x, running_means, 'b-', label='Running Mean', markersize=1)
         plt.fill_between(x, running_ci_lower, running_ci_upper,
                          color='b', alpha=0.2, label='95% CI')
         plt.axhline(y=theoretical, color='r', linestyle='--',
-                    label=f'Theoretical: {theoretical:.6f}')
+                    label=f'Theoretical: {theoretical:.6f}', linewidth=1)
 
         plt.xlabel('Number of Samples')
-        plt.ylabel('λJ²')
-        plt.title('Convergence of λJ² with Increasing Sample Size')
+        plt.ylabel('$\\lambda (L/2)^2$')
+        # plt.title('Convergence of λL/2² with Increasing Sample Size')
         plt.legend()
         plt.grid(True, alpha=0.3)
-        plt.show()
+        if args.save_dir:
+            plt.savefig(f'{args.save_dir}/convergence.pgf')
+        if args.plot:
+            plt.show()
 
 
 def calculate_bootstrap_ci(data, confidence=0.95, n_resamples=10000):
@@ -357,6 +372,19 @@ def main():
     args = parse_arguments()
     theoretical = (math.pi ** 2) / 8
 
+    if args.save_dir:
+        if not os.path.exists(args.save_dir):
+            print("Error: Directory does not exist.")
+            print("Plots will be displayed only.")
+            args.save_dir = None
+        else:
+            plt.rcParams.update({
+                "text.usetex": True,
+                "pgf.rcfonts": False,
+                "pgf.texsystem": "pdflatex",
+                "font.size": 8,
+            })
+
     params = SimulationParameters(
         j_range=(args.j_lower, args.j_step, args.j_upper),
         walker_range=(args.num_walkers_lower,
@@ -382,7 +410,7 @@ def main():
         df.to_csv(args.output, index=False)
         print(f"Results saved to {args.output}")
 
-    if args.plot:
-        plot_results(df, theoretical)
+    if args.plot or args.save_dir:
+        plot_results(df, theoretical, args)
 
     print_statistics(df, theoretical)
